@@ -73,12 +73,7 @@ target_link_libraries(scenelab PRIVATE
   imgui_backend
 )
 
-if(APPLE)
-  find_library(COCOA_LIBRARY Cocoa)
-  find_library(IOKIT_LIBRARY IOKit)
-  find_library(COREVIDEO_LIBRARY CoreVideo)
-  target_link_libraries(scenelab PRIVATE ${COCOA_LIBRARY} ${IOKIT_LIBRARY} ${COREVIDEO_LIBRARY})
-elseif(UNIX AND NOT APPLE)
+if(UNIX)
   find_package(X11 REQUIRED)
   target_link_libraries(scenelab PRIVATE dl pthread X11::X11)
 endif()
@@ -116,5 +111,3 @@ target_include_directories(imgui_backend PUBLIC
 )
 target_link_libraries(imgui_backend PUBLIC imgui glfw glad)
 target_compile_definitions(imgui_backend PUBLIC "IMGUI_IMPL_OPENGL_LOADER_GLAD")
-
-
