@@ -13,59 +13,70 @@
 #include <backends/imgui_impl_opengl3.h>
 
 // Static pointer to store current renderer instance for callback
-static ARenderer* s_currentRenderer = nullptr;
+static ARenderer *s_currentRenderer = nullptr;
 
 // Callback map
-std::unordered_map<int, std::unordered_map<int, std::vector<std::function<void()>>>> keyCallbacks = {};
+std::unordered_map<int,
+    std::unordered_map<int, std::vector<std::function<void()>>>>
+    keyCallbacks = {};
 std::function<void(double, double)> cursorCallback = NULL;
 
-static void error_callback(int error, const char* description)
+static void error_callback(int error, const char *description)
 {
-    (void) error;
+    (void)error;
     fprintf(stderr, "Error: %s\n", description);
 }
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+static void key_callback(
+    GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    (void) window;
-    (void) scancode;
-    (void) mods;
+    (void)window;
+    (void)scancode;
+    (void)mods;
 
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
 
-    for (const auto& callback : keyCallbacks[key][action]) {
+    for (const auto &callback : keyCallbacks[key][action]) {
         callback();
     }
 }
 
-static void mouse_callback(GLFWwindow* window, int button, int action, int mods) {
-    (void) window;
-    (void) mods;
+static void mouse_callback(
+    GLFWwindow *window, int button, int action, int mods)
+{
+    (void)window;
+    (void)mods;
 
-    for (const auto& callback : keyCallbacks[button][action]) {
+    for (const auto &callback : keyCallbacks[button][action]) {
         callback();
     }
 }
 
-void ARenderer::addKeyCallback(int key, int action, std::function<void()> callback) {
+void ARenderer::addKeyCallback(
+    int key, int action, std::function<void()> callback)
+{
     keyCallbacks[key][action].push_back(callback);
 }
 
-static void cursor_callback(GLFWwindow* window, double x, double y) {
-    (void) window;
+static void cursor_callback(GLFWwindow *window, double x, double y)
+{
+    (void)window;
 
     if (cursorCallback) {
         cursorCallback(x, y);
     }
 }
 
-void ARenderer::addCursorCallback(std::function<void(double, double)> callback) {
+void ARenderer::addCursorCallback(std::function<void(double, double)> callback)
+{
     cursorCallback = callback;
     glfwSetCursorPosCallback(m_window, cursor_callback);
 }
 
-ARenderer::ARenderer() {
+ARenderer::ARenderer()
+{
     // Set the current renderer instance for callbacks
     s_currentRenderer = this;
 
@@ -73,16 +84,16 @@ ARenderer::ARenderer() {
 
     glfwSetErrorCallback(error_callback);
 
-    if (!glfwInit())
+    if (!glfwInit()) {
         exit(EXIT_FAILURE);
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     m_window = glfwCreateWindow(1920, 1080, "Simple example", NULL, NULL);
-    if (!m_window)
-    {
+    if (!m_window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
@@ -99,13 +110,15 @@ void ARenderer::init()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO(); (void) io;
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 }
 
-ARenderer::~ARenderer() {
+ARenderer::~ARenderer()
+{
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -116,6 +129,4 @@ ARenderer::~ARenderer() {
     exit(EXIT_SUCCESS);
 }
 
-bool ARenderer::shouldWindowClose() {
-    return glfwWindowShouldClose(m_window);
-}
+bool ARenderer::shouldWindowClose() { return glfwWindowShouldClose(m_window); }

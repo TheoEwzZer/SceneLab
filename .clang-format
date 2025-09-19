@@ -8,7 +8,7 @@ PointerAlignment: Right
 QualifierAlignment: Left
 ReferenceAlignment: Right
 SeparateDefinitionBlocks: Always
-SortIncludes: CaseSensitive
+SortIncludes: false
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true

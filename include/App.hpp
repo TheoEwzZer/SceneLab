@@ -5,7 +5,6 @@
 ** App
 */
 
-
 #pragma once
 
 #include <memory>
@@ -25,28 +24,28 @@ class App {
     glm::vec2 m_currentMousePos;
     bool firstMouse = false;
 
-    glm::vec2 mouseDelta{0.0f};
-    glm::vec2 prevMousePos{0.0f};
+    glm::vec2 mouseDelta { 0.0f };
+    glm::vec2 prevMousePos { 0.0f };
 
     unsigned int selectedObjectIndex = 1;
 
-    private:
-        std::vector<GameObject> m_gameObjects;
-        Camera m_camera;
-        void init();
-        void update();
-        void render();
+private:
+    std::vector<GameObject> m_gameObjects;
+    Camera m_camera;
+    void init();
+    void update();
+    void render();
 
-        void selectedTransformUI();
+    void selectedTransformUI();
 
-    public:
-        explicit App();
-        ~App();
+public:
+    explicit App();
+    ~App();
 
-        App(const App&) = delete;
-        App& operator=(const App&) = delete;
+    App(const App &) = delete;
+    App &operator=(const App &) = delete;
 
-        void run();
+    void run();
 
-        std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<ARenderer> m_renderer;
 };

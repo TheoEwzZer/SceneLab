@@ -4,4 +4,4 @@
 #include <sstream>
 #include <string>
 
-std::string parseFileToString(const std::string& filePath);
+std::string parseFileToString(const std::string &filePath);
