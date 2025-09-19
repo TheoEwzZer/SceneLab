@@ -38,7 +38,7 @@ if(NOT PIP_RESULT EQUAL 0)
 endif()
 
 execute_process(
-  COMMAND ${Python3_EXECUTABLE} -m glad --api gl:core=4.6 --out-path ${CMAKE_BINARY_DIR}/glad c
+  COMMAND ${Python3_EXECUTABLE} -m glad --api gl:core=3.3 --out-path ${CMAKE_BINARY_DIR}/glad c
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   RESULT_VARIABLE GLAD_RESULT
 )
