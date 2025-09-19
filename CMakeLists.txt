@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.0)
-project(Learning-OpenGL VERSION 0.1.0 LANGUAGES C CXX)
+project(scenelab VERSION 0.1.0 LANGUAGES C CXX)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra -Wpedantic")
@@ -34,6 +34,6 @@ set(IMGUIZMO_SOURCES
 include_directories(${IMGUIZMO_DIR})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/external/stb_image/include)
-add_executable(Learning-OpenGL ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
+add_executable(scenelab ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
 
-target_link_libraries(Learning-OpenGL glfw glad)
+target_link_libraries(scenelab glfw glad)
