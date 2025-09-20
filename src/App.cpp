@@ -24,7 +24,7 @@ App::App()
     m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
     m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
 
-    m_imageIO = std::make_unique<ImageIO>(m_renderer, m_gameObjects, m_camera);
+    m_image = std::make_unique<Image>(m_renderer, m_gameObjects, m_camera);
 }
 
 App::~App() {}
@@ -578,7 +578,7 @@ void App::init()
     m_renderer->addDropCallback([&](const std::vector<std::string> &paths,
                                     double mouseX, double mouseY) {
         for (const auto &p : paths) {
-            m_imageIO->addImageObjectAtScreenPos(p, mouseX, mouseY);
+            m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
         }
     });
 
@@ -602,7 +602,7 @@ void App::init()
 
 void App::update()
 {
-    m_imageIO->updateMessageTimer(0.016f);
+    m_image->updateMessageTimer(0.016f);
     if (wPressed) {
         auto pos = m_camera.getPosition();
         auto rot = m_camera.getRotation();
@@ -789,7 +789,7 @@ void App::render()
     m_renderer->beginFrame();
 
     selectedTransformUI();
-    m_imageIO->renderUI();
+    m_image->renderUI();
 
     for (const auto &obj : m_gameObjects) {
         if (obj.hasTransformChanged()) {
@@ -803,7 +803,7 @@ void App::render()
 
     m_renderer->drawAll();
 
-    m_imageIO->handleFrameExport(m_renderer->getWindow());
+    m_image->handleFrameExport(m_renderer->getWindow());
 
     m_renderer->endFrame();
 }

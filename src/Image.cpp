@@ -1,4 +1,4 @@
-#include "ImageIO.hpp"
+#include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
 #include <algorithm>
 #include <cctype>
@@ -18,14 +18,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-ImageIO::ImageIO(std::unique_ptr<ARenderer> &renderer,
+Image::Image(std::unique_ptr<ARenderer> &renderer,
     std::vector<GameObject> &gameObjects, const Camera &camera) :
     m_renderer(renderer),
     m_gameObjects(gameObjects), m_camera(camera)
 {
+    m_paletteColors = { { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f },
+        { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f } };
 }
 
-bool ImageIO::isValidImageFile(const std::string &path) const
+bool Image::isValidImageFile(const std::string &path) const
 {
     size_t dotPos = path.find_last_of(".");
     if (dotPos == std::string::npos) {
@@ -38,7 +40,7 @@ bool ImageIO::isValidImageFile(const std::string &path) const
     return (ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif");
 }
 
-glm::vec3 ImageIO::screenToWorldPosition(double mouseX, double mouseY) const
+glm::vec3 Image::screenToWorldPosition(double mouseX, double mouseY) const
 {
     // Convert mouse position (pixels) to normalized device coordinates [-1, 1]
     float ndcX = static_cast<float>((mouseX / 1920.0) * 2.0 - 1.0);
@@ -69,7 +71,7 @@ glm::vec3 ImageIO::screenToWorldPosition(double mouseX, double mouseY) const
     return rayOrigin + t * rayDirection;
 }
 
-std::vector<float> ImageIO::createImageQuadVertices(
+std::vector<float> Image::createImageQuadVertices(
     float width, float height) const
 {
     const float w = width;
@@ -91,7 +93,7 @@ std::vector<float> ImageIO::createImageQuadVertices(
     };
 }
 
-bool ImageIO::addImageObjectAtScreenPos(
+bool Image::addImageObjectAtScreenPos(
     const std::string &path, double mouseX, double mouseY)
 {
     if (!isValidImageFile(path)) {
@@ -134,7 +136,7 @@ bool ImageIO::addImageObjectAtScreenPos(
     }
 }
 
-void ImageIO::startFrameExport(
+void Image::startFrameExport(
     std::function<void(bool success, const std::string &message)> callback)
 {
     if (m_exportSettings.frameCount <= 0) {
@@ -146,7 +148,7 @@ void ImageIO::startFrameExport(
         return;
     }
 
-    // Start export directly in ImageIO
+    // Start export directly in Image
     m_exportCurrentIndex = 0;
     m_exportCallback
         = [this, callback](bool success, const std::string &message) {
@@ -158,16 +160,16 @@ void ImageIO::startFrameExport(
     m_exportActive = true;
 }
 
-void ImageIO::updateMessageTimer(float deltaTime)
+void Image::updateMessageTimer(float deltaTime)
 {
     if (m_statusMessage.timer > 0.0f) {
         m_statusMessage.timer -= deltaTime;
     }
 }
 
-bool ImageIO::isExportInProgress() const { return m_exportActive; }
+bool Image::isExportInProgress() const { return m_exportActive; }
 
-void ImageIO::setStatusMessage(
+void Image::setStatusMessage(
     const std::string &message, float duration, bool isError)
 {
     m_statusMessage.text = message;
@@ -175,14 +177,14 @@ void ImageIO::setStatusMessage(
     m_statusMessage.isError = isError;
 }
 
-void ImageIO::handleFrameExport(GLFWwindow *window)
+void Image::handleFrameExport(GLFWwindow *window)
 {
     if (m_exportActive) {
         captureAndWriteCurrentFrame(window);
     }
 }
 
-void ImageIO::captureAndWriteCurrentFrame(GLFWwindow *window)
+void Image::captureAndWriteCurrentFrame(GLFWwindow *window)
 {
     if (!m_exportActive || !window) {
         return;
@@ -254,9 +256,9 @@ void ImageIO::captureAndWriteCurrentFrame(GLFWwindow *window)
     }
 }
 
-void ImageIO::renderUI()
+void Image::renderUI()
 {
-    ImGui::Begin("Image IO");
+    ImGui::Begin("Image");
 
     ImGui::Text("Image Import");
     ImGui::Text("Drag and drop image files into the window");
@@ -275,6 +277,48 @@ void ImageIO::renderUI()
     }
 
     ImGui::Separator();
+
+    // Color Palette UI
+    ImGui::Text("Color Palette");
+
+    for (size_t i = 0; i < m_paletteColors.size(); ++i) {
+        float color[3] = { m_paletteColors[i].r, m_paletteColors[i].g,
+            m_paletteColors[i].b };
+        std::string label = std::string("Color ") + std::to_string(i);
+        if (ImGui::ColorEdit3(label.c_str(), color,
+                ImGuiColorEditFlags_NoInputs)) {
+            m_paletteColors[i] = glm::vec3(color[0], color[1], color[2]);
+        }
+
+        ImGui::SameLine();
+        std::string useLabel = std::string("Use##") + std::to_string(i);
+        if (ImGui::RadioButton(useLabel.c_str(),
+                m_selectedPaletteIndex == static_cast<int>(i))) {
+            m_selectedPaletteIndex = static_cast<int>(i);
+        }
+
+        ImGui::SameLine();
+        bool canRemove = m_paletteColors.size() > 4;
+        if (!canRemove) {
+            ImGui::BeginDisabled();
+        }
+        std::string remLabel = std::string("Remove##") + std::to_string(i);
+        if (ImGui::Button(remLabel.c_str())) {
+            if (canRemove) {
+                m_paletteColors.erase(m_paletteColors.begin() + i);
+                if (m_selectedPaletteIndex >= static_cast<int>(m_paletteColors.size())) {
+                    m_selectedPaletteIndex = static_cast<int>(m_paletteColors.size()) - 1;
+                }
+            }
+        }
+        if (!canRemove) {
+            ImGui::EndDisabled();
+        }
+    }
+
+    if (ImGui::Button("Add Color")) {
+        m_paletteColors.push_back(glm::vec3(1.0f));
+    }
 
     ImGui::Text("Frame Sequence Export");
 

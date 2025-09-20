@@ -12,7 +12,7 @@
 class ARenderer;
 struct GLFWwindow;
 
-class ImageIO {
+class Image {
 public:
     struct ExportSettings {
         std::string outputDir = "./";
@@ -51,13 +51,13 @@ private:
     void captureAndWriteCurrentFrame(GLFWwindow *window);
 
 public:
-    ImageIO(std::unique_ptr<ARenderer> &renderer,
+    Image(std::unique_ptr<ARenderer> &renderer,
         std::vector<GameObject> &gameObjects, const Camera &camera);
 
-    ~ImageIO() = default;
+    ~Image() = default;
 
-    ImageIO(const ImageIO &) = delete;
-    ImageIO &operator=(const ImageIO &) = delete;
+    Image(const Image &) = delete;
+    Image &operator=(const Image &) = delete;
 
     bool addImageObjectAtScreenPos(
         const std::string &path, double mouseX, double mouseY);
@@ -85,4 +85,9 @@ public:
 
     void setStatusMessage(const std::string &message, float duration = 5.0f,
         bool isError = false);
+
+private:
+    // Color palette
+    std::vector<glm::vec3> m_paletteColors;
+    int m_selectedPaletteIndex = 0;
 };

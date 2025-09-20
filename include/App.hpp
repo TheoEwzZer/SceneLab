@@ -12,7 +12,7 @@
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
-#include "ImageIO.hpp"
+#include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 class App {
@@ -50,5 +50,5 @@ public:
     void run();
 
     std::unique_ptr<ARenderer> m_renderer;
-    std::unique_ptr<ImageIO> m_imageIO;
+    std::unique_ptr<Image> m_image;
 };
