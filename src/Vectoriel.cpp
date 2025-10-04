@@ -1,5 +1,6 @@
 #include "Vectoriel.hpp"
 #include "GameObject.hpp"
+#include <cmath>
 #include <cstdint>
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/fwd.hpp>
@@ -10,7 +11,7 @@
 ASimpleVectPrimitive::ASimpleVectPrimitive() :
     GameObject(), m_type("Abstract Primitive"), m_filled(true),
     m_fillColor({ 0, 0, 0, 0 }), m_outlineColor({ 0, 0, 0, 0 }),
-    m_outlineWidth(0)
+    m_outlineWidth(0), m_scale(1.0f, 1.0f)
 {
 }
 
@@ -43,6 +44,25 @@ void ASimpleVectPrimitive::setFilled(bool fill) { m_filled = fill; }
 bool ASimpleVectPrimitive::isFilled() { return m_filled; }
 
 std::string ASimpleVectPrimitive::getType() const { return m_type; }
+
+glm::vec2 ASimpleVectPrimitive::getLocalScale() const { return m_scale; }
+
+void ASimpleVectPrimitive::setLocalScale(glm::vec2 scale) { m_scale = scale; }
+
+float ASimpleVectPrimitive::getLocalRotation() const
+{
+    return m_rotator_offset * 360.0f;
+}
+
+void ASimpleVectPrimitive::setLocalRotation(float angle)
+{
+    float mod = fmod(angle, 360.0f);
+
+    if (mod < 0) {
+        mod += 360.0f;
+    }
+    m_rotator_offset = mod / 360.0f;
+}
 
 VectPolygon::VectPolygon(uint32_t segments) : ASimpleVectPrimitive()
 {
@@ -119,8 +139,12 @@ std::vector<float> VectPolygon::generateGLVertices() const
 
     // Generation des points des lignes
     for (uint32_t r = 0; r < m_segments; r++) {
-        linePoints[r] = glm::vec2(std::cos(r * ((2.0f * M_PI) / m_segments)),
-            std::sin((r * ((2.0f * M_PI) / m_segments))));
+        linePoints[r] = glm::vec2(std::cos(r * ((2.0f * M_PI) / m_segments)
+                                      + (2.0f * M_PI * m_rotator_offset))
+                * m_scale.x,
+            std::sin((r * ((2.0f * M_PI) / m_segments))
+                + (2.0f * M_PI * m_rotator_offset))
+                * m_scale.y);
     }
 
     // Calcul des jointures
@@ -157,3 +181,43 @@ std::vector<float> VectPolygon::generateGLVertices() const
 
     return glVertices;
 }
+
+VectEllipse::VectEllipse(glm::vec2 radius, uint32_t resolution) :
+    VectPolygon(resolution)
+{
+    m_scale = radius;
+    m_type = "Ellipse";
+}
+
+VectEllipse::~VectEllipse() {}
+
+void VectEllipse::setResolution(uint32_t resolution)
+{
+    m_segments = resolution;
+}
+
+uint32_t VectEllipse::getResolution() const { return (m_segments); }
+
+VectCircle::VectCircle(float radius, uint32_t resolution) :
+    VectEllipse(glm::vec2(radius), resolution)
+{
+    m_type = "Circle";
+}
+
+VectCircle::~VectCircle() {}
+
+VectRectangle::VectRectangle(glm::vec2 size) : VectPolygon(4)
+{
+    m_type = "Rectangle";
+    setLocalScale(size);
+    setLocalRotation(45);
+}
+
+VectRectangle::~VectRectangle() {}
+
+VectSquare::VectSquare(float size) : VectRectangle({ size, size })
+{
+    m_type = "Square";
+}
+
+VectSquare::~VectSquare() {}

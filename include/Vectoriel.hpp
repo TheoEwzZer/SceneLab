@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <glm/fwd.hpp>
 #include <string>
 #include <vector>
 #include "GameObject.hpp"
@@ -28,6 +29,13 @@ public:
     bool isFilled();
     std::string getType() const;
 
+    void setLocalScale(glm::vec2 scale);
+    glm::vec2 getLocalScale() const;
+
+    void setLocalRotation(float angle);
+    float getLocalRotation() const;
+
+
     virtual std::vector<float> generateGLVertices() const = 0;
 
 protected:
@@ -38,6 +46,9 @@ protected:
 
     RGBAColor m_outlineColor;
     float m_outlineWidth;
+
+    glm::vec2 m_scale;
+    float m_rotator_offset;
 };
 
 class VectPolygon : public ASimpleVectPrimitive {
@@ -59,3 +70,35 @@ protected:
     static MiterVertices calculateMiterJoint(
         glm::vec2 prev, glm::vec2 curr, glm::vec2 next, float halfWidth);
 };
+
+class VectEllipse : public VectPolygon
+{
+public:
+    VectEllipse(glm::vec2 radius, uint32_t resolution = 100);
+    ~VectEllipse();
+
+    void setResolution(uint32_t resolution);
+    uint32_t getResolution() const;
+};
+
+class VectCircle : public VectEllipse
+{
+public:
+    VectCircle(float radius, uint32_t resolution = 100);
+    ~VectCircle();
+};
+
+class VectRectangle : public VectPolygon
+{
+public:
+    VectRectangle(glm::vec2 size);
+    ~VectRectangle();
+};
+
+class VectSquare : public VectRectangle
+{
+public:
+    VectSquare(float size);
+    ~VectSquare();
+};
+
