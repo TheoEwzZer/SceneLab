@@ -21,6 +21,8 @@ public:
     float getOutlineWidth() const;
     void setOutlineColor(const RGBAColor &color);
     RGBAColor getOutlineColor() const;
+    void setFillColor(const RGBAColor &color);
+    RGBAColor getFillColor() const;
 
     void setFilled(bool fill);
     bool isFilled();

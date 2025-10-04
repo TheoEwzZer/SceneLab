@@ -26,9 +26,16 @@ RGBAColor ASimpleVectPrimitive::getOutlineColor() const
     return m_outlineColor;
 }
 
+RGBAColor ASimpleVectPrimitive::getFillColor() const { return m_fillColor; }
+
 void ASimpleVectPrimitive::setOutlineColor(const RGBAColor &color)
 {
     m_outlineColor = color;
+}
+
+void ASimpleVectPrimitive::setFillColor(const RGBAColor &color)
+{
+    m_fillColor = color;
 }
 
 void ASimpleVectPrimitive::setFilled(bool fill) { m_filled = fill; }
@@ -89,10 +96,7 @@ VectPolygon::MiterVertices VectPolygon::calculateMiterJoint(
     // Calcule du décalage
     glm::vec2 offset = M * L * halfWidth;
 
-    return {
-        curr + offset,
-        curr - offset
-    };
+    return { curr + offset, curr - offset };
 }
 
 /**
@@ -107,6 +111,11 @@ std::vector<float> VectPolygon::generateGLVertices() const
     std::vector<MiterVertices> jointVertices(
         m_segments); // Vertex avec jointure
     std::vector<float> glVertices(m_segments * 6 * 8); // Vertex finaux
+
+    auto add_vertex = [&](glm::vec2 pos) {
+        glVertices.insert(glVertices.end(),
+            { pos.x, pos.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f });
+    };
 
     // Generation des points des lignes
     for (uint32_t r = 0; r < m_segments; r++) {
@@ -129,16 +138,21 @@ std::vector<float> VectPolygon::generateGLVertices() const
         MiterVertices endJoint = jointVertices.at((i + 1) % m_segments);
 
         // Triangles: V1, V2, V3, V3, V2, V4
-        auto add_vertex = [&](glm::vec2 pos) {
-            glVertices.insert(glVertices.end(),
-                { pos.x, pos.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f });
-        };
         add_vertex(startJoint.outer);
         add_vertex(startJoint.inner);
         add_vertex(endJoint.outer);
         add_vertex(endJoint.outer);
         add_vertex(startJoint.inner);
         add_vertex(endJoint.inner);
+    }
+
+    // Generation intérieure
+    if (m_filled) {
+        for (uint32_t i = 0; i < m_segments; i++) {
+            add_vertex(glm::vec2(0, 0));
+            add_vertex(linePoints[i]);
+            add_vertex(linePoints[(i + 1) % m_segments]);
+        }
     }
 
     return glVertices;
