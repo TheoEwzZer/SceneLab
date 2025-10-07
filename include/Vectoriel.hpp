@@ -2,9 +2,12 @@
 
 #include <cstdint>
 #include <glm/fwd.hpp>
+#include <memory>
 #include <string>
 #include <vector>
 #include "GameObject.hpp"
+
+namespace Vect {
 
 struct RGBAColor {
     uint8_t r;
@@ -13,92 +16,150 @@ struct RGBAColor {
     uint8_t a;
 };
 
-class ASimpleVectPrimitive : public GameObject {
-public:
-    ASimpleVectPrimitive();
-    virtual ~ASimpleVectPrimitive() {};
+namespace Primitive {
 
-    void setOutlineWidth(float width);
-    float getOutlineWidth() const;
-    void setOutlineColor(const RGBAColor &color);
-    RGBAColor getOutlineColor() const;
-    void setFillColor(const RGBAColor &color);
-    RGBAColor getFillColor() const;
+    class ASimplePrimitive : public GameObject {
+    public:
+        ASimplePrimitive();
+        virtual ~ASimplePrimitive() {};
 
-    void setFilled(bool fill);
-    bool isFilled();
-    std::string getType() const;
+        void setOutlineWidth(float width);
+        float getOutlineWidth() const;
+        void setOutlineColor(const RGBAColor &color);
+        RGBAColor getOutlineColor() const;
+        void setFillColor(const RGBAColor &color);
+        RGBAColor getFillColor() const;
 
-    void setLocalScale(glm::vec2 scale);
-    glm::vec2 getLocalScale() const;
+        void setFilled(bool fill);
+        bool isFilled();
+        std::string getType() const;
 
-    void setLocalRotation(float angle);
-    float getLocalRotation() const;
+        void setLocalScale(const glm::vec2 &scale);
+        glm::vec2 getLocalScale() const;
 
+        void setLocalPosition(const glm::vec2 &pos);
+        glm::vec2 getLocalPosition() const;
 
-    virtual std::vector<float> generateGLVertices() const = 0;
+        void setLocalRotation(float angle);
+        float getLocalRotation() const;
 
-protected:
-    std::string m_type;
+        virtual std::vector<float> generateGLVertices() const = 0;
 
-    bool m_filled;
-    RGBAColor m_fillColor;
+    protected:
+        std::string m_type;
 
-    RGBAColor m_outlineColor;
-    float m_outlineWidth;
+        bool m_filled;
+        RGBAColor m_fillColor;
 
-    glm::vec2 m_scale;
-    float m_rotator_offset;
-};
+        RGBAColor m_outlineColor;
+        float m_outlineWidth;
 
-class VectPolygon : public ASimpleVectPrimitive {
-public:
-    VectPolygon(uint32_t segments);
-    ~VectPolygon();
-
-    std::vector<float> generateGLVertices() const override;
-
-protected:
-    uint32_t m_segments;
-
-    // Structure pour les jointures
-    struct MiterVertices {
-        glm::vec2 outer;
-        glm::vec2 inner;
+        glm::vec2 m_scale;
+        glm::vec2 m_pos;
+        float m_rotator_offset;
     };
 
-    static MiterVertices calculateMiterJoint(
-        glm::vec2 prev, glm::vec2 curr, glm::vec2 next, float halfWidth);
-};
+    class StraightLine : public ASimplePrimitive {
+    public:
+        StraightLine(
+            const glm::vec2 &pointA, const glm::vec2 &pointB, float width);
+        ~StraightLine();
 
-class VectEllipse : public VectPolygon
-{
-public:
-    VectEllipse(glm::vec2 radius, uint32_t resolution = 100);
-    ~VectEllipse();
+        void setPoints(const glm::vec2 &pointA, const glm::vec2 &pointB);
+        std::vector<float> generateGLVertices() const override;
 
-    void setResolution(uint32_t resolution);
-    uint32_t getResolution() const;
-};
+    protected:
+        glm::vec2 m_pointA;
+        glm::vec2 m_pointB;
 
-class VectCircle : public VectEllipse
-{
-public:
-    VectCircle(float radius, uint32_t resolution = 100);
-    ~VectCircle();
-};
+        std::vector<float> triangulate(float width, float z) const;
+    };
 
-class VectRectangle : public VectPolygon
-{
-public:
-    VectRectangle(glm::vec2 size);
-    ~VectRectangle();
-};
+    class RegularPolygon : public ASimplePrimitive {
+    public:
+        RegularPolygon(uint32_t segments);
+        ~RegularPolygon();
 
-class VectSquare : public VectRectangle
-{
-public:
-    VectSquare(float size);
-    ~VectSquare();
-};
+        std::vector<float> generateGLVertices() const override;
 
+    protected:
+        uint32_t m_segments;
+
+        // Structure pour les jointures
+        struct MiterVertices {
+            glm::vec2 outer;
+            glm::vec2 inner;
+        };
+
+        static MiterVertices calculateMiterJoint(const glm::vec2 &prev,
+            const glm::vec2 &curr, const glm::vec2 &next, float halfWidth);
+    };
+
+    class Ellipse : public RegularPolygon {
+    public:
+        Ellipse(const glm::vec2 &radius, uint32_t resolution = 100);
+        ~Ellipse();
+
+        void setResolution(uint32_t resolution);
+        uint32_t getResolution() const;
+    };
+
+    class Circle : public Ellipse {
+    public:
+        Circle(float radius, uint32_t resolution = 100);
+        ~Circle();
+    };
+
+    class Rectangle : public RegularPolygon {
+    public:
+        Rectangle(const glm::vec2 &size);
+        ~Rectangle();
+    };
+
+    class Triangle : public RegularPolygon {
+    public:
+        Triangle();
+        ~Triangle();
+    };
+
+    class Square : public Rectangle {
+    public:
+        Square(float size);
+        ~Square();
+    };
+
+    using Point = Circle;
+}
+
+namespace Shape {
+    class AShape : public GameObject {
+    public:
+        AShape();
+        virtual ~AShape() {};
+
+        std::string getType() const;
+        void setColor(const RGBAColor &color);
+
+        std::vector<float> generateGLVertices() const;
+
+    protected:
+        std::string m_type;
+        float m_angle;
+        std::vector<std::unique_ptr<Vect::Primitive::ASimplePrimitive>> m_primitives;
+    };
+
+    class House : public AShape {
+    public:
+        House();
+        ~House();
+    };
+
+    class Doll : public AShape {
+    public:
+        Doll();
+        ~Doll();
+    };
+
+}
+
+}

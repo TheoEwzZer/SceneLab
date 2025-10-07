@@ -1,90 +1,48 @@
 #include "Vectoriel.hpp"
-#include "GameObject.hpp"
 #include <cmath>
 #include <cstdint>
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/fwd.hpp>
 #include <vector>
 
-// Abstract Primitive
+static const float CONST_POS_Z = 0.0f; // Position z des primitives
 
-ASimpleVectPrimitive::ASimpleVectPrimitive() :
-    GameObject(), m_type("Abstract Primitive"), m_filled(true),
-    m_fillColor({ 0, 0, 0, 0 }), m_outlineColor({ 0, 0, 0, 0 }),
-    m_outlineWidth(0), m_scale(1.0f, 1.0f)
-{
-}
+namespace Vect::Primitive {
 
-void ASimpleVectPrimitive::setOutlineWidth(float width)
+StraightLine::StraightLine(const glm::vec2 &pointA, const glm::vec2 &pointB,
+    float width) : ASimplePrimitive(), m_pointA(pointA), m_pointB(pointB)
 {
     m_outlineWidth = width;
+    m_type = "Straight Line";
 }
 
-float ASimpleVectPrimitive::getOutlineWidth() const { return m_outlineWidth; }
+StraightLine::~StraightLine() {}
 
-RGBAColor ASimpleVectPrimitive::getOutlineColor() const
+void StraightLine::setPoints(const glm::vec2 &pointA, const glm::vec2 &pointB)
 {
-    return m_outlineColor;
+    m_pointA = pointA;
+    m_pointB = pointB;
 }
 
-RGBAColor ASimpleVectPrimitive::getFillColor() const { return m_fillColor; }
-
-void ASimpleVectPrimitive::setOutlineColor(const RGBAColor &color)
+std::vector<float> StraightLine::generateGLVertices() const
 {
-    m_outlineColor = color;
+    return (triangulate(m_outlineWidth, CONST_POS_Z));
 }
-
-void ASimpleVectPrimitive::setFillColor(const RGBAColor &color)
-{
-    m_fillColor = color;
-}
-
-void ASimpleVectPrimitive::setFilled(bool fill) { m_filled = fill; }
-
-bool ASimpleVectPrimitive::isFilled() { return m_filled; }
-
-std::string ASimpleVectPrimitive::getType() const { return m_type; }
-
-glm::vec2 ASimpleVectPrimitive::getLocalScale() const { return m_scale; }
-
-void ASimpleVectPrimitive::setLocalScale(glm::vec2 scale) { m_scale = scale; }
-
-float ASimpleVectPrimitive::getLocalRotation() const
-{
-    return m_rotator_offset * 360.0f;
-}
-
-void ASimpleVectPrimitive::setLocalRotation(float angle)
-{
-    float mod = fmod(angle, 360.0f);
-
-    if (mod < 0) {
-        mod += 360.0f;
-    }
-    m_rotator_offset = mod / 360.0f;
-}
-
-VectPolygon::VectPolygon(uint32_t segments) : ASimpleVectPrimitive()
-{
-    m_type = "Polygon";
-    m_segments = segments;
-    m_outlineWidth = 0.01f;
-}
-
-VectPolygon::~VectPolygon() {}
 
 /**
- * @brief Permet de dessiner une ligne simple avec des triangles. Ne gère pas
- * les jointures.
+ * @brief Permet de dessiner une ligne droite simple avec deux triangles. Ne
+ * gère pas les jointures.
  * @param p1 Point A
  * @param p2 Point B
  * @param width Épaisseur
  * @param z Position z
  * @return std::vector<float> Vertices générés
  */
-std::vector<float> straightLineToTriangle(
-    glm::vec2 p1, glm::vec2 p2, float width, float z)
+std::vector<float> StraightLine::triangulate(float width, float z) const
 {
+    glm::vec2 p1 = m_pointA + getLocalPosition();
+    glm::vec2 p2 = m_pointB + getLocalPosition();
+
     glm::vec2 perp = { -(p2.y - p1.y), (p2.x - p1.x) };
     glm::vec2 norm = glm::normalize(perp);
     glm::vec2 decal = norm * (width / 2.0f);
@@ -99,8 +57,17 @@ std::vector<float> straightLineToTriangle(
     };
 }
 
-VectPolygon::MiterVertices VectPolygon::calculateMiterJoint(
-    glm::vec2 prev, glm::vec2 curr, glm::vec2 next, float halfWidth)
+RegularPolygon::RegularPolygon(uint32_t segments) : ASimplePrimitive()
+{
+    m_type = "Polygon";
+    m_segments = segments;
+}
+
+RegularPolygon::~RegularPolygon() {}
+
+RegularPolygon::MiterVertices RegularPolygon::calculateMiterJoint(
+    const glm::vec2 &prev, const glm::vec2 &curr, const glm::vec2 &next,
+    float halfWidth)
 {
     glm::vec2 D_in = curr - prev;
     glm::vec2 D_out = next - curr;
@@ -124,9 +91,8 @@ VectPolygon::MiterVertices VectPolygon::calculateMiterJoint(
  * gère les jointures.
  * @return std::vector<float> Vertices générés
  */
-std::vector<float> VectPolygon::generateGLVertices() const
+std::vector<float> RegularPolygon::generateGLVertices() const
 {
-    const float z = 0.0f; // Position z
     std::vector<glm::vec2> linePoints(m_segments); // Points des segments
     std::vector<MiterVertices> jointVertices(
         m_segments); // Vertex avec jointure
@@ -134,17 +100,18 @@ std::vector<float> VectPolygon::generateGLVertices() const
 
     auto add_vertex = [&](glm::vec2 pos) {
         glVertices.insert(glVertices.end(),
-            { pos.x, pos.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f });
+            { pos.x, pos.y, CONST_POS_Z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f });
     };
 
     // Generation des points des lignes
     for (uint32_t r = 0; r < m_segments; r++) {
         linePoints[r] = glm::vec2(std::cos(r * ((2.0f * M_PI) / m_segments)
                                       + (2.0f * M_PI * m_rotator_offset))
-                * m_scale.x,
-            std::sin((r * ((2.0f * M_PI) / m_segments))
-                + (2.0f * M_PI * m_rotator_offset))
-                * m_scale.y);
+                                * m_scale.x,
+                            std::sin((r * ((2.0f * M_PI) / m_segments))
+                                + (2.0f * M_PI * m_rotator_offset))
+                                * m_scale.y)
+            + m_pos;
     }
 
     // Calcul des jointures
@@ -173,7 +140,7 @@ std::vector<float> VectPolygon::generateGLVertices() const
     // Generation intérieure
     if (m_filled) {
         for (uint32_t i = 0; i < m_segments; i++) {
-            add_vertex(glm::vec2(0, 0));
+            add_vertex(m_pos);
             add_vertex(linePoints[i]);
             add_vertex(linePoints[(i + 1) % m_segments]);
         }
@@ -182,42 +149,46 @@ std::vector<float> VectPolygon::generateGLVertices() const
     return glVertices;
 }
 
-VectEllipse::VectEllipse(glm::vec2 radius, uint32_t resolution) :
-    VectPolygon(resolution)
+Ellipse::Ellipse(const glm::vec2 &radius, uint32_t resolution) :
+    RegularPolygon(resolution)
 {
     m_scale = radius;
     m_type = "Ellipse";
 }
 
-VectEllipse::~VectEllipse() {}
+Ellipse::~Ellipse() {}
 
-void VectEllipse::setResolution(uint32_t resolution)
-{
-    m_segments = resolution;
-}
+void Ellipse::setResolution(uint32_t resolution) { m_segments = resolution; }
 
-uint32_t VectEllipse::getResolution() const { return (m_segments); }
+uint32_t Ellipse::getResolution() const { return (m_segments); }
 
-VectCircle::VectCircle(float radius, uint32_t resolution) :
-    VectEllipse(glm::vec2(radius), resolution)
+Circle::Circle(float radius, uint32_t resolution) :
+    Ellipse(glm::vec2(radius), resolution)
 {
     m_type = "Circle";
 }
 
-VectCircle::~VectCircle() {}
+Circle::~Circle() {}
 
-VectRectangle::VectRectangle(glm::vec2 size) : VectPolygon(4)
+Triangle::Triangle() : RegularPolygon(3)
+{
+    m_type = "Triangle";
+    setLocalRotation(-30);
+}
+
+Triangle::~Triangle() {}
+
+Rectangle::Rectangle(const glm::vec2 &size) : RegularPolygon(4)
 {
     m_type = "Rectangle";
     setLocalScale(size);
     setLocalRotation(45);
 }
 
-VectRectangle::~VectRectangle() {}
+Rectangle::~Rectangle() {}
 
-VectSquare::VectSquare(float size) : VectRectangle({ size, size })
-{
-    m_type = "Square";
+Square::Square(float size) : Rectangle({ size, size }) { m_type = "Square"; }
+
+Square::~Square() {}
+
 }
-
-VectSquare::~VectSquare() {}
