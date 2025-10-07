@@ -160,6 +160,12 @@ namespace Shape {
         ~Doll();
     };
 
+    class LetterA : public AShape {
+        public:
+        LetterA(float width = 0.05f);
+        ~LetterA();
+    };
+
 }
 
 }
