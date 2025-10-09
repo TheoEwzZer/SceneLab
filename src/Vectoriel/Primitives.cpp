@@ -163,7 +163,7 @@ void Ellipse::setResolution(uint32_t resolution) { m_segments = resolution; }
 uint32_t Ellipse::getResolution() const { return (m_segments); }
 
 Circle::Circle(float radius, uint32_t resolution) :
-    Ellipse(glm::vec2(radius), resolution)
+    Ellipse(glm::vec2(radius, radius), resolution)
 {
     m_type = "Circle";
 }

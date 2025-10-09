@@ -186,9 +186,8 @@ protected:
     float m_outlineColor[4];
     float m_fillColor[4];
     float m_localScale[2];
-    float m_localPosition[2];
-    float m_localRotation;
     bool m_fill;
+    int m_input_segments;
 
     float m_line_pointA[2];
     float m_line_pointB[2];
@@ -209,10 +208,6 @@ protected:
         primitive.setOutlineWidth(m_outlineWidth);
         primitive.setOutlineColor(RGBAColor(m_outlineColor[0],
             m_outlineColor[1], m_outlineColor[2], m_outlineColor[3]));
-        primitive.setLocalPosition(
-            glm::vec2(m_localPosition[0], m_localPosition[1]));
-        primitive.setLocalRotation(m_localRotation);
-        primitive.setLocalScale(glm::vec2(m_localScale[0], m_localScale[1]));
 
         return (primitive);
     }
