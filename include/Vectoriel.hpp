@@ -14,10 +14,10 @@ class App;
 namespace Vect {
 
 struct RGBAColor {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
+    float r;
+    float g;
+    float b;
+    float a;
 };
 
 namespace Primitive {
@@ -48,6 +48,7 @@ namespace Primitive {
         float getLocalRotation() const;
 
         virtual std::vector<float> generateGLVertices() const = 0;
+        std::vector<float> getVertices();
 
     protected:
         std::string m_type;
@@ -146,6 +147,7 @@ namespace Shape {
         void setColor(const RGBAColor &color);
 
         std::vector<float> generateGLVertices() const;
+        std::vector<float> getVertices();
 
     protected:
         std::string m_type;
@@ -180,6 +182,9 @@ public:
     ~UIDrawer();
 
     void renderUI(App *app);
+
+    void renderUIPrimitive(App *app);
+    void renderUIShape(App *app);
 
 protected:
     float m_outlineWidth;

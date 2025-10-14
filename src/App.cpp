@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "GameObject.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
 
 #include "Camera.hpp"
@@ -11,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 App::App()
@@ -629,8 +631,19 @@ void App::update()
     // ImGuizmo manipulation moved to render() function
 }
 
+// Move l'objet dans le vecteur
+GameObject &App::registerObject(GameObject &obj)
+{
+    selectedObjectIndex = m_gameObjects.size();
+    return (m_gameObjects.emplace_back(std::move(obj)));
+}
+
 void App::selectedTransformUI()
 {
+    if (selectedObjectIndex == -1) {
+        return;
+    }
+
     ImGui::Begin("Transforms");
     ImGui::Text("Position");
 

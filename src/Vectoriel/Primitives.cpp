@@ -48,12 +48,12 @@ std::vector<float> StraightLine::triangulate(float width, float z) const
     glm::vec2 decal = norm * (width / 2.0f);
 
     return {
-        p1.x + decal.x, p1.y + decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V1
-        p1.x - decal.x, p1.y - decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V2
-        p2.x + decal.x, p2.y + decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V3
-        p2.x + decal.x, p2.y + decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V3
-        p1.x - decal.x, p1.y - decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V2
-        p2.x - decal.x, p2.y - decal.y, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, // V4
+        p1.x + decal.x, p1.y + decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V1
+        p1.x - decal.x, p1.y - decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V2
+        p2.x + decal.x, p2.y + decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V3
+        p2.x + decal.x, p2.y + decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V3
+        p1.x - decal.x, p1.y - decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V2
+        p2.x - decal.x, p2.y - decal.y, z, m_fillColor.r, m_fillColor.g, m_fillColor.b, m_fillColor.a, 1.0f, // V4
     };
 }
 
@@ -98,9 +98,9 @@ std::vector<float> RegularPolygon::generateGLVertices() const
         m_segments); // Vertex avec jointure
     std::vector<float> glVertices(m_segments * 6 * 8); // Vertex finaux
 
-    auto add_vertex = [&](glm::vec2 pos) {
+    auto add_vertex = [&](glm::vec2 pos, RGBAColor color) {
         glVertices.insert(glVertices.end(),
-            { pos.x, pos.y, CONST_POS_Z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f });
+            { pos.x, pos.y, CONST_POS_Z, color.r, color.g, color.b, color.a, 1.0f });
     };
 
     // Generation des points des lignes
@@ -129,20 +129,20 @@ std::vector<float> RegularPolygon::generateGLVertices() const
         MiterVertices endJoint = jointVertices.at((i + 1) % m_segments);
 
         // Triangles: V1, V2, V3, V3, V2, V4
-        add_vertex(startJoint.outer);
-        add_vertex(startJoint.inner);
-        add_vertex(endJoint.outer);
-        add_vertex(endJoint.outer);
-        add_vertex(startJoint.inner);
-        add_vertex(endJoint.inner);
+        add_vertex(startJoint.outer, m_outlineColor);
+        add_vertex(startJoint.inner, m_outlineColor);
+        add_vertex(endJoint.outer, m_outlineColor);
+        add_vertex(endJoint.outer, m_outlineColor);
+        add_vertex(startJoint.inner, m_outlineColor);
+        add_vertex(endJoint.inner, m_outlineColor);
     }
 
     // Generation intérieure
     if (m_filled) {
         for (uint32_t i = 0; i < m_segments; i++) {
-            add_vertex(m_pos);
-            add_vertex(linePoints[i]);
-            add_vertex(linePoints[(i + 1) % m_segments]);
+            add_vertex(m_pos, m_fillColor);
+            add_vertex(linePoints[i], m_fillColor);
+            add_vertex(linePoints[(i + 1) % m_segments], m_fillColor);
         }
     }
 

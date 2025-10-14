@@ -54,6 +54,11 @@ float ASimplePrimitive::getLocalRotation() const
     return m_rotator_offset * 360.0f;
 }
 
+std::vector<float> ASimplePrimitive::getVertices()
+{
+    return (generateGLVertices());
+}
+
 void ASimplePrimitive::setLocalRotation(float angle)
 {
     float mod = fmod(angle, 360.0f);
@@ -94,6 +99,10 @@ std::vector<float> AShape::generateGLVertices() const
         vertices.insert(vertices.end(), p_vertices.begin(), p_vertices.end());
     }
     return vertices;
+}
+
+std::vector<float> AShape::getVertices() {
+    return (generateGLVertices());
 }
 
 }

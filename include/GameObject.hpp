@@ -1,5 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <vector>
 
 class GameObject {
 protected:
@@ -21,6 +22,11 @@ public:
     const glm::vec3 &getScale() const { return m_scale; }
 
     bool hasTransformChanged() const { return m_transformDirty; }
+
+    std::vector<float> getVertices()
+    {
+        return (std::vector<float>(8, 0.0f));
+    };
 
     const glm::mat4 &getModelMatrix() const;
 };

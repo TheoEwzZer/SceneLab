@@ -6,10 +6,171 @@
 using namespace Vect;
 
 UIDrawer::UIDrawer() :
-    m_outlineWidth(0.1f), m_outlineColor(0, 0, 0, 255),
-    m_fillColor(0, 0, 0, 255), m_localScale(1.0f, 1.0f), m_fill(false),
-    m_input_segments(5), m_circle_radius(1.0f)
+    m_outlineWidth(0.05f), m_outlineColor(1, 1, 1, 1), m_fillColor(1, 1, 1, 1),
+    m_localScale(1.0f, 1.0f), m_fill(false), m_input_segments(5),
+    m_line_pointA(0, 0), m_line_pointB(1, 1), m_line_width(1.0f),
+    m_circle_radius(1.0f)
 {
+}
+
+// TODO: faire des outils par types de primitive (cliquer pour placer dans le
+// scène, changer le curseur pour chaque outil)
+// - Cercle
+// - Carré
+// - Ligne
+// - ...
+
+void UIDrawer::renderUIShape(App *app)
+{
+    static const char *formes[] = { "House", "Doll", "Letter A" };
+    static int current_forme_idx = 0;
+
+    ImGui::ListBox(
+        "Select forme", &current_forme_idx, formes, IM_ARRAYSIZE(formes));
+    switch (current_forme_idx) {
+        case 0:
+            if (ImGui::Button("Generer Maison")) {
+                auto house = Vect::Shape::House();
+                house.setColor({ m_fillColor[0], m_fillColor[1],
+                    m_fillColor[2], m_fillColor[3] });
+                house.rendererId = app->m_renderer->registerObject(
+                    house.getVertices(), {}, "", false, true);
+                app->registerObject(house);
+            }
+            break;
+        case 1:
+            if (ImGui::Button("Generer Figure")) {
+                auto doll = Vect::Shape::Doll();
+                doll.setColor({ m_fillColor[0], m_fillColor[1], m_fillColor[2],
+                    m_fillColor[3] });
+                doll.rendererId = app->m_renderer->registerObject(
+                    doll.getVertices(), {}, "", false, true);
+                app->registerObject(doll);
+            }
+            break;
+        case 2:
+            if (ImGui::Button("Generer Lettre A")) {
+                auto letter = Vect::Shape::LetterA();
+                letter.setColor({ m_fillColor[0], m_fillColor[1],
+                    m_fillColor[2], m_fillColor[3] });
+                letter.rendererId = app->m_renderer->registerObject(
+                    letter.getVertices(), {}, "", false, true);
+                app->registerObject(letter);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void UIDrawer::renderUIPrimitive(App *app)
+{
+    static int current_primitive_idx = 0;
+    const char *primitives[] = { "Ligne", "Triangle", "Carre", "Rectangle",
+        "Polygone", "Cercle", "Ellipse", "Point" };
+
+    std::vector<float> vertices;
+
+    ImGui::ListBox("Select primitive", &current_primitive_idx, primitives,
+        IM_ARRAYSIZE(primitives));
+    ImGui::Text("Propriétés");
+    ImGui::SliderFloat("Taille Contour", &m_outlineWidth, 0.0f, 1.0f);
+    ImGui::Checkbox("Remplissage", &m_fill);
+
+    switch (current_primitive_idx) {
+        case 0:
+            ImGui::InputFloat2("Position point A", m_line_pointA);
+            ImGui::InputFloat2("Position point B", m_line_pointB);
+            ImGui::Separator();
+
+            if (ImGui::Button("Generer Ligne")) {
+                auto p = instanciatePrimitiveWAttributes<
+                    Vect::Primitive::StraightLine>(
+                    glm::vec2(m_line_pointA[0], m_line_pointA[1]),
+                    glm::vec2(m_line_pointB[0], m_line_pointB[1]),
+                    m_outlineWidth);
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 1:
+            if (ImGui::Button("Generer Triangle")) {
+                auto p = instanciatePrimitiveWAttributes<
+                    Vect::Primitive::Triangle>();
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 2:
+            if (ImGui::Button("Carre")) {
+                ImGui::SliderFloat("Taille", &m_circle_radius, 0.0f, 1.0f);
+                auto p
+                    = instanciatePrimitiveWAttributes<Vect::Primitive::Square>(
+                        m_circle_radius);
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 3:
+            ImGui::SliderFloat2("Taille", m_localScale, 0.0f, 1.0f);
+            if (ImGui::Button("Generer Rectangle")) {
+                auto p = instanciatePrimitiveWAttributes<
+                    Vect::Primitive::Rectangle>(
+                    glm::vec2(m_localScale[0], m_localScale[1]));
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 4:
+            ImGui::SliderInt("Nb segments", &m_input_segments, 4, 100);
+            if (ImGui::Button("Generer Polygone")) {
+                auto p = instanciatePrimitiveWAttributes<
+                    Vect::Primitive::RegularPolygon>(m_input_segments);
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 5:
+            ImGui::SliderFloat("Rayon", &m_circle_radius, 0.0f, 1.0f);
+            if (ImGui::Button("Generer Cercle")) {
+                auto p
+                    = instanciatePrimitiveWAttributes<Vect::Primitive::Circle>(
+                        m_circle_radius);
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 6:
+            ImGui::SliderFloat2("Taille", m_localScale, 0.0f, 1.0f);
+            if (ImGui::Button("Generer Ellipse")) {
+                auto p = instanciatePrimitiveWAttributes<
+                    Vect::Primitive::Ellipse>(
+                    glm::vec2(m_localScale[0], m_localScale[1]));
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        case 7:
+            if (ImGui::Button("Generer Point")) {
+                m_fill = true;
+                auto p
+                    = instanciatePrimitiveWAttributes<Vect::Primitive::Point>(
+                        0.1f);
+                p.rendererId = app->m_renderer->registerObject(
+                    p.getVertices(), {}, "", false, true);
+                app->registerObject(p);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 void UIDrawer::renderUI(App *app)
@@ -19,146 +180,22 @@ void UIDrawer::renderUI(App *app)
     ImGui::Separator();
     ImGui::Text("Primitives");
 
-    const char *primitives[] = { "Ligne", "Triangle", "Carré", "Rectangle",
-        "Polygone", "Cercle", "Ellipse", "Point" };
-    static int current_primitive_idx = 0;
-    ImGui::ListBox("Select primitive", &current_primitive_idx, primitives,
-        IM_ARRAYSIZE(primitives));
+    static int ui_mode = 0;
 
+    ImGui::RadioButton("Mode Primitive", &ui_mode, 0);
+    ImGui::RadioButton("Mode Forme", &ui_mode, 1);
     ImGui::Separator();
+
     ImGui::Text("Couleurs");
     ImGui::ColorEdit4("Couleur Contour", m_outlineColor);
     ImGui::ColorEdit4("Couleur Remplissage", m_fillColor);
     ImGui::Separator();
 
-    ImGui::Text("Propriétés");
-    ImGui::InputFloat("Taille Contour", &m_outlineWidth);
-    ImGui::Checkbox("Remplissage", &m_fill);
-
-    // TODO, faire ça en moins crad
-    static int selection = 1;
-    std::vector<float> tmp;
-
-    switch (current_primitive_idx) {
-        case 0:
-            ImGui::InputFloat2("Position point A", m_line_pointA);
-            ImGui::InputFloat2("Position point B", m_line_pointB);
-            ImGui::InputFloat("Epaisseur", &m_line_width);
-            ImGui::Separator();
-
-            if (ImGui::Button("Generer Ligne")) {
-                const auto &p = instanciatePrimitiveWAttributes<
-                    Vect::Primitive::StraightLine>(
-                    glm::vec2(m_line_pointA[0], m_line_pointA[1]),
-                    glm::vec2(m_line_pointB[0], m_line_pointB[1]),
-                    m_line_width);
-
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 1:
-            if (ImGui::Button("Generer Triangle")) {
-                const auto &p = instanciatePrimitiveWAttributes<
-                    Vect::Primitive::Triangle>();
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 2:
-            if (ImGui::Button("Taille")) {
-                ImGui::InputFloat("Rayon", &m_circle_radius);
-                const auto &p
-                    = instanciatePrimitiveWAttributes<Vect::Primitive::Square>(
-                        m_circle_radius);
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 3:
-            ImGui::InputFloat("Facteur longueur", &m_localScale[0]);
-            ImGui::InputFloat("Facteur largeur", &m_localScale[1]);
-            if (ImGui::Button("Generer Rectangle")) {
-                const auto &p = instanciatePrimitiveWAttributes<
-                    Vect::Primitive::Rectangle>(
-                    glm::vec2(m_localScale[0], m_localScale[1]));
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 4:
-            ImGui::InputInt("Nb segments", &m_input_segments);
-            if (ImGui::Button("Generer Polygone")) {
-                const auto &p = instanciatePrimitiveWAttributes<
-                    Vect::Primitive::RegularPolygon>(m_input_segments);
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 5:
-            ImGui::InputFloat("Rayon", &m_circle_radius);
-            if (ImGui::Button("Generer Cercle")) {
-                const auto &p
-                    = instanciatePrimitiveWAttributes<Vect::Primitive::Circle>(
-                        m_circle_radius);
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 6:
-            ImGui::InputFloat("Facteur longueur", &m_localScale[0]);
-            ImGui::InputFloat("Facteur largeur", &m_localScale[1]);
-            if (ImGui::Button("Generer Ellipse")) {
-                const auto &p = instanciatePrimitiveWAttributes<
-                    Vect::Primitive::Ellipse>(
-                    glm::vec2(m_localScale[0], m_localScale[1]));
-                tmp = p.generateGLVertices();
-            }
-            break;
-        case 7:
-            if (ImGui::Button("Generer Point")) {
-                m_fill = true;
-                const auto &p
-                    = instanciatePrimitiveWAttributes<Vect::Primitive::Point>(
-                        0.1f);
-                tmp = p.generateGLVertices();
-            }
-            break;
-        default:
-            break;
+    if (ui_mode == 0) {
+        renderUIPrimitive(app);
+    } else {
+        renderUIShape(app);
     }
-    if (tmp.size() > 0) {
-        app->m_gameObjects.resize(app->m_gameObjects.size() + 1);
-        app->selectedObjectIndex = app->m_gameObjects[++selection].rendererId
-            = app->m_renderer->registerObject(tmp, {}, "", false);
-    }
-
-    // if (ImGui::Button("Ajoute Cercle")) {
-    //     const auto &c
-    //         = instanciatePrimitiveWAttributes<Vect::Primitive::Circle>(3);
-    //     renderer->registerObject(c.generateGLVertices(), {}, "", false);
-    // }
-
-    // if (ImGui::Button("Ajoute Rectangle")) {
-    //     const auto &c
-    //         = instanciatePrimitiveWAttributes<Vect::Primitive::Rectangle>();
-    //     renderer->registerObject(c.generateGLVertices(), {}, "", false);
-    // }
-
-    // if (ImGui::Button("Ajoute Carre")) {
-    //     const auto &c
-    //         = instanciatePrimitiveWAttributes<Vect::Primitive::Square>(3);
-    //     renderer->registerObject(c.generateGLVertices(), {}, "", false);
-    // }
-
-    // if (ImGui::Button("Ajoute Triangle")) {
-    //     const auto &c
-    //         = instanciatePrimitiveWAttributes<Vect::Primitive::Triangle>();
-    //     renderer->registerObject(c.generateGLVertices(), {}, "", false);
-    // }
-
-    // if (ImGui::Button("Ajoute Polygone")) {
-    //     int n = 12;
-    //     const auto &c
-    //         =
-    //         instanciatePrimitiveWAttributes<Vect::Primitive::RegularPolygon>(12);
-    //     renderer->registerObject(c.generateGLVertices(), {}, "", false);
-    // }
-
     ImGui::End();
 }
 
