@@ -792,17 +792,18 @@ void App::selectedTransformUI()
 
     // Object selector
     ImGui::Text("Selected Object:");
-    for (std::size_t i = 0; i < m_gameObjects.size(); ++i) {
-        if (i > 0) {
-            ImGui::SameLine();
+    if (ImGui::BeginListBox("##object_list",
+            ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing()))) {
+        for (std::size_t i = 0; i < m_gameObjects.size(); ++i) {
+            const bool isSelected = (selectedObjectIndex == i);
+            if (ImGui::Selectable(m_gameObjects[i].m_name, isSelected)) {
+                selectedObjectIndex = i;
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
         }
-
-        ImGui::PushID(i);
-        std::string label { m_gameObjects[i].m_name };
-        if (ImGui::RadioButton(label.c_str(), selectedObjectIndex == i)) {
-            selectedObjectIndex = i;
-        }
-        ImGui::PopID();
+        ImGui::EndListBox();
     }
 
     ImGui::Separator();
