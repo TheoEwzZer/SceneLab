@@ -9,17 +9,24 @@
 #include "ImGuizmo.h"
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
 
 App::App()
 {
     m_renderer = std::make_unique<RasterizationRenderer>();
     m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
     m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+
+    m_image = std::make_unique<Image>(m_renderer, m_gameObjects, m_camera);
 }
 
 App::~App() {}
@@ -509,6 +516,9 @@ void App::init()
     m_gameObjects[1].rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
 
+    // Make the initial asset visible in Image UI for histogram selection
+    m_image->addImportedImagePath("../assets/wish-you-where-here.jpg");
+
     // Set initial position
     m_gameObjects[1].setPosition({ 1.2f, 0.f, 0.0f });
     m_gameObjects[1].setScale(glm::vec3 { 0.2f });
@@ -569,6 +579,14 @@ void App::init()
         rayWor = glm::normalize(rayWor);
     });
 
+    // File drop import
+    m_renderer->addDropCallback([&](const std::vector<std::string> &paths,
+                                    double mouseX, double mouseY) {
+        for (const auto &p : paths) {
+            m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
+        }
+    });
+
     // Register mouse movement callback
     m_renderer->addCursorCallback([&](double x, double y) {
         m_currentMousePos = glm::vec2(x, y);
@@ -589,6 +607,7 @@ void App::init()
 
 void App::update()
 {
+    m_image->updateMessageTimer(0.016f);
     if (wPressed) {
         auto pos = m_camera.getPosition();
         auto rot = m_camera.getRotation();
@@ -788,6 +807,7 @@ void App::render()
     vectorial_ui.renderUI(this);
 
     selectedTransformUI();
+    m_image->renderUI();
 
     for (const auto &obj : m_gameObjects) {
         if (obj.hasTransformChanged()) {
@@ -800,6 +820,9 @@ void App::render()
     m_renderer->setProjectionMatrix(m_camera.getProjectionMatrix());
 
     m_renderer->drawAll();
+
+    m_image->handleFrameExport(m_renderer->getWindow());
+
     m_renderer->endFrame();
 }
 

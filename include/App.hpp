@@ -10,10 +10,12 @@
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <string>
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
 #include "Vectoriel.hpp"
+#include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 class App {
@@ -54,4 +56,5 @@ public:
     GameObject &registerObject(GameObject &object);
 
     std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<Image> m_image;
 };
