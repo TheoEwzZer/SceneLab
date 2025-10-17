@@ -37,4 +37,4 @@ include_directories(${IMGUIZMO_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/external/stb_image/include)
 add_executable(scenelab ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
 
-target_link_libraries(scenelab glfw glad)
+target_link_libraries(scenelab glfw glad glm)
