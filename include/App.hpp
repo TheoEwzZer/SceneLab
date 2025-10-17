@@ -11,6 +11,7 @@
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
+#include "SceneGraph.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 class App {
@@ -27,10 +28,11 @@ class App {
     glm::vec2 mouseDelta { 0.0f };
     glm::vec2 prevMousePos { 0.0f };
 
-    unsigned int selectedObjectIndex = 1;
-
+    // selected object pointer
+    SceneGraph::Node *m_selectedObjectNode = nullptr;
 private:
-    std::vector<GameObject> m_gameObjects;
+    SceneGraph m_sceneGraph;
+
     Camera m_camera;
     void init();
     void update();

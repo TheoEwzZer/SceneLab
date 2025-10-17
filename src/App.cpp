@@ -8,7 +8,6 @@
 #include "ImGuizmo.h"
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -24,9 +23,6 @@ App::~App() {}
 
 void App::init()
 {
-    // Create game objects
-    m_gameObjects.resize(2);
-
     std::vector<float> vertices = {
         -0.5f,
         -0.5f,
@@ -501,19 +497,27 @@ void App::init()
         0.0f,
     };
 
-    // Register with renderer
-    m_gameObjects[0].rendererId = m_renderer->registerObject(
+m_sceneGraph.setRoot(std::make_unique<SceneGraph::Node>());
+    m_sceneGraph.getRoot()->setData(GameObject());
+    m_sceneGraph.getRoot()->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", false);
-    m_gameObjects[1].rendererId = m_renderer->registerObject(
+    m_sceneGraph.getRoot()->addChild(std::make_unique<SceneGraph::Node>());
+    m_sceneGraph.getRoot()->getChild(0)->setData(GameObject());
+    m_sceneGraph.getRoot()->getChild(0)->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
+    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+        std::cout << std::string(depth * 2, ' ') << "Node at depth " << depth
+                  << std::endl;
+    });
+    
+    m_selectedObjectNode = m_sceneGraph.getRoot();
 
-    // Set initial position
-    m_gameObjects[1].setPosition({ 1.2f, 0.f, 0.0f });
-    m_gameObjects[1].setScale(glm::vec3 { 0.2f });
-
-    for (const auto &obj : m_gameObjects) {
+    m_sceneGraph.getRoot()->getChild(0)->getData().setPosition({ 1.2f, 0.f, 0.0f });
+    m_sceneGraph.getRoot()->getChild(0)->getData().setScale(glm::vec3 { 0.2f });
+    
+    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
         m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
-    }
+    });
 
     // Register key callbacks
     m_renderer->addKeyCallback(
@@ -631,6 +635,23 @@ void App::update()
 
 void App::selectedTransformUI()
 {
+    ImGui::Begin("Scene Graph");
+
+    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+        std::string label = std::string(depth * 2, ' ') + "Object " + std::to_string(obj.rendererId);
+        ImGui::Text("%s", label.c_str());
+        if (ImGui::IsItemClicked()) {
+            // Find the corresponding node in the scene graph
+            m_sceneGraph.traverse([&](SceneGraph::Node &node, int) {
+                if (node.getData().rendererId == obj.rendererId) {
+                    m_selectedObjectNode = &node;
+                }
+            });
+        }
+    });
+
+    ImGui::End();
+
     ImGui::Begin("Transforms");
     ImGui::Text("Position");
 
@@ -641,18 +662,18 @@ void App::selectedTransformUI()
     static char zTransform[64];
 
     snprintf(xTransform, sizeof(xTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().x);
+        m_selectedObjectNode->getData().getPosition().x);
     snprintf(yTransform, sizeof(yTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().y);
+        m_selectedObjectNode->getData().getPosition().y);
     snprintf(zTransform, sizeof(zTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().z);
+        m_selectedObjectNode->getData().getPosition().z);
 
     ImGui::InputText("x", xTransform, IM_ARRAYSIZE(xTransform));
     ImGui::InputText("y", yTransform, IM_ARRAYSIZE(yTransform));
     ImGui::InputText("z", zTransform, IM_ARRAYSIZE(zTransform));
 
     try {
-        m_gameObjects[selectedObjectIndex].setPosition({ std::stof(xTransform),
+        m_selectedObjectNode->getData().setPosition({ std::stof(xTransform),
             std::stof(yTransform), std::stof(zTransform) });
     } catch (const std::invalid_argument &) {
     }
@@ -665,17 +686,17 @@ void App::selectedTransformUI()
     char zRot[64];
     // Convert radians to degrees for display
     snprintf(xRot, sizeof(xRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().x));
+        glm::degrees(m_selectedObjectNode->getData().getRotation().x));
     snprintf(yRot, sizeof(yRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().y));
+        glm::degrees(m_selectedObjectNode->getData().getRotation().y));
     snprintf(zRot, sizeof(zRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().z));
+        glm::degrees(m_selectedObjectNode->getData().getRotation().z));
     ImGui::InputText("rot x", xRot, IM_ARRAYSIZE(xRot));
     ImGui::InputText("rot y", yRot, IM_ARRAYSIZE(yRot));
     ImGui::InputText("rot z", zRot, IM_ARRAYSIZE(zRot));
     try {
         // Convert degrees to radians when setting
-        m_gameObjects[selectedObjectIndex].setRotation(
+        m_selectedObjectNode->getData().setRotation(
             { glm::radians(std::stof(xRot)), glm::radians(std::stof(yRot)),
                 glm::radians(std::stof(zRot)) });
     } catch (const std::invalid_argument &) {
@@ -688,16 +709,16 @@ void App::selectedTransformUI()
     char yScale[64];
     char zScale[64];
     snprintf(xScale, sizeof(xScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().x);
+        m_selectedObjectNode->getData().getScale().x);
     snprintf(yScale, sizeof(yScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().y);
+        m_selectedObjectNode->getData().getScale().y);
     snprintf(zScale, sizeof(zScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().z);
+        m_selectedObjectNode->getData().getScale().z);
     ImGui::InputText("scale x", xScale, IM_ARRAYSIZE(xScale));
     ImGui::InputText("scale y", yScale, IM_ARRAYSIZE(yScale));
     ImGui::InputText("scale z", zScale, IM_ARRAYSIZE(zScale));
     try {
-        m_gameObjects[selectedObjectIndex].setScale(
+        m_selectedObjectNode->getData().setScale(
             { std::stof(xScale), std::stof(yScale), std::stof(zScale) });
     } catch (const std::invalid_argument &) {
     }
@@ -707,24 +728,12 @@ void App::selectedTransformUI()
 
     auto view = m_camera.getViewMatrix();
     auto proj = m_camera.getProjectionMatrix();
-    auto model = m_gameObjects[selectedObjectIndex].getModelMatrix();
+    auto model = m_selectedObjectNode->getData().getModelMatrix();
 
     static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::TRANSLATE);
     static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
 
     ImGui::Begin("Transformation Type");
-
-    // Object selector
-    ImGui::Text("Selected Object:");
-    if (ImGui::RadioButton("Object 0", selectedObjectIndex == 0)) {
-        selectedObjectIndex = 0;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Object 1", selectedObjectIndex == 1)) {
-        selectedObjectIndex = 1;
-    }
-
-    ImGui::Separator();
 
     if (ImGui::RadioButton(
             "Translate (T)", currentGizmoOperation == ImGuizmo::TRANSLATE)) {
@@ -760,10 +769,10 @@ void App::selectedTransformUI()
             ImGuizmo::DecomposeMatrixToComponents(
                 &model[0][0], &translation[0], &rotation[0], &scale[0]);
 
-            m_gameObjects[selectedObjectIndex].setPosition(translation);
-            m_gameObjects[selectedObjectIndex].setRotation(
+            m_selectedObjectNode->getData().setPosition(translation);
+            m_selectedObjectNode->getData().setRotation(
                 glm::radians(glm::vec3(rotation.x, rotation.y, rotation.z)));
-            m_gameObjects[selectedObjectIndex].setScale(scale);
+            m_selectedObjectNode->getData().setScale(scale);
         }
     }
 }
@@ -774,11 +783,11 @@ void App::render()
 
     selectedTransformUI();
 
-    for (const auto &obj : m_gameObjects) {
+    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
         if (obj.hasTransformChanged()) {
             m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
         }
-    }
+    });
 
     // Update camera matrices
     m_renderer->setViewMatrix(m_camera.getViewMatrix());
