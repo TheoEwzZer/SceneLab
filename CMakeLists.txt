@@ -54,4 +54,17 @@ include_directories(${IMGUIZMO_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/external/stb_image/include)
 add_executable(scenelab ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
 
-target_link_libraries(scenelab glfw glad glm)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    find_package(X11 REQUIRED)
+    find_package(Threads REQUIRED)
+
+    target_link_libraries(scenelab PRIVATE
+        glfw
+        glad
+        glm
+        ${X11_LIBRARIES}
+        Threads::Threads
+    )
+else()
+    target_link_libraries(scenelab glfw glad glm)
+endif()
