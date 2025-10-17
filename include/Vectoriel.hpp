@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <glm/fwd.hpp>
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -234,6 +235,9 @@ public:
      * @param app Pointeur sur l'application
      */
     void renderUI(App *app);
+
+    void setCurrentColorRGBA(const glm::vec4 &rgba, bool applyFill = true,
+        bool applyOutline = true);
 
 protected:
     void renderUIPrimitive(App *app);

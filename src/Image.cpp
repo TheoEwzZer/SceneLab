@@ -27,8 +27,8 @@ Image::Image(std::unique_ptr<ARenderer> &renderer,
     m_renderer(renderer),
     m_gameObjects(gameObjects), m_camera(camera)
 {
-    m_paletteColors = { { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f },
-        { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f } };
+    m_paletteColors = { { 1.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } };
 }
 
 bool Image::isValidImageFile(const std::string &path) const
@@ -477,12 +477,15 @@ void Image::renderUI()
     ImGui::Text("Color Palette");
 
     for (size_t i = 0; i < m_paletteColors.size(); ++i) {
-        float color[3] = { m_paletteColors[i].r, m_paletteColors[i].g,
-            m_paletteColors[i].b };
+        float color[4] = { m_paletteColors[i].r, m_paletteColors[i].g,
+            m_paletteColors[i].b, m_paletteColors[i].a };
         std::string label = std::string("Color ") + std::to_string(i);
-        if (ImGui::ColorEdit3(label.c_str(), color,
+        if (ImGui::ColorEdit4(label.c_str(), color,
                 ImGuiColorEditFlags_NoInputs)) {
-            m_paletteColors[i] = glm::vec3(color[0], color[1], color[2]);
+            m_paletteColors[i] = glm::vec4(color[0], color[1], color[2], color[3]);
+            if ((int)i == m_selectedPaletteIndex) {
+                m_paletteChanged = true;
+            }
         }
 
         ImGui::SameLine();
@@ -490,6 +493,7 @@ void Image::renderUI()
         if (ImGui::RadioButton(useLabel.c_str(),
                 m_selectedPaletteIndex == static_cast<int>(i))) {
             m_selectedPaletteIndex = static_cast<int>(i);
+            m_paletteChanged = true;
         }
 
         ImGui::SameLine();
@@ -512,7 +516,7 @@ void Image::renderUI()
     }
 
     if (ImGui::Button("Add Color")) {
-        m_paletteColors.push_back(glm::vec3(1.0f));
+        m_paletteColors.push_back(glm::vec4(1.0f));
     }
 
     ImGui::Separator();
@@ -622,4 +626,16 @@ void Image::renderUI()
     }
 
     ImGui::End();
+}
+
+bool Image::consumeSelectedPaletteColor(glm::vec4 &outColor)
+{
+    if (!m_paletteColors.empty() && m_selectedPaletteIndex >= 0
+        && m_selectedPaletteIndex < (int)m_paletteColors.size()
+        && m_paletteChanged) {
+        outColor = m_paletteColors[(size_t)m_selectedPaletteIndex];
+        m_paletteChanged = false;
+        return true;
+    }
+    return false;
 }

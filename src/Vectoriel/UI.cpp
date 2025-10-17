@@ -2,6 +2,7 @@
 #include "Vectoriel.hpp"
 #include "imgui.h"
 #include <glm/fwd.hpp>
+#include <glm/glm.hpp>
 
 using namespace Vect;
 
@@ -204,3 +205,20 @@ void UIDrawer::renderUI(App *app)
 }
 
 UIDrawer::~UIDrawer() {}
+
+void UIDrawer::setCurrentColorRGBA(const glm::vec4 &rgba, bool applyFill,
+    bool applyOutline)
+{
+    if (applyOutline) {
+        m_outlineColor[0] = rgba.x;
+        m_outlineColor[1] = rgba.y;
+        m_outlineColor[2] = rgba.z;
+        m_outlineColor[3] = rgba.w;
+    }
+    if (applyFill) {
+        m_fillColor[0] = rgba.x;
+        m_fillColor[1] = rgba.y;
+        m_fillColor[2] = rgba.z;
+        m_fillColor[3] = rgba.w;
+    }
+}
