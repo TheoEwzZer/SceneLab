@@ -15,6 +15,8 @@ private:
         glm::mat4 modelMatrix { 1.0f };
         bool isActive = true;
         bool isLight = false;
+        bool useTexture = true;
+        glm::vec3 objectColor { 1.0f, 1.0f, 1.0f };
     };
 
     glm::mat4 m_viewMatrix { 1.0f };
@@ -39,6 +41,11 @@ public:
     int registerObject(const std::vector<float> &vertices,
         const std::vector<unsigned int> &indices,
         const std::string &texturePath, bool isLight) override;
+    int registerObject(const std::vector<float> &vertices,
+        const std::vector<unsigned int> &indices, bool isLight);
+    int registerObject(const std::vector<float> &vertices,
+        const std::vector<unsigned int> &indices, const glm::vec3 &color,
+        bool isLight);
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
 

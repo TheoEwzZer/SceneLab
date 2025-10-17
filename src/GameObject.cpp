@@ -1,4 +1,5 @@
 #include "GameObject.hpp"
+#include <cstring>
 #include <glm/gtc/matrix_transform.hpp>
 
 void GameObject::setPosition(const glm::vec3 &pos)
@@ -23,6 +24,11 @@ void GameObject::setScale(const glm::vec3 &scale)
         m_scale = scale;
         m_transformDirty = true;
     }
+}
+
+void GameObject::setName(const std::string &name)
+{
+    std::strncpy(m_name, name.c_str(), OBJ_MAX_NAME_SIZE);
 }
 
 const glm::mat4 &GameObject::getModelMatrix() const

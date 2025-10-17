@@ -1,18 +1,23 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <string>
 
 class GameObject {
 private:
     glm::vec3 m_position { 0.0f }, m_rotation { 0.0f }, m_scale { 1.0f };
+    static const auto OBJ_MAX_NAME_SIZE = 25;
     mutable glm::mat4 m_modelMatrix { 1.0f };
     mutable bool m_transformDirty = true;
 
 public:
     int rendererId = -1;
+    char m_name[OBJ_MAX_NAME_SIZE + 1] = { "Object" };
 
     void setPosition(const glm::vec3 &pos);
     void setRotation(const glm::vec3 &rot);
     void setScale(const glm::vec3 &scale);
+
+    void setName(const std::string &name);
 
     const glm::vec3 &getPosition() const { return m_position; }
 

@@ -101,6 +101,22 @@ int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
     return id;
 }
 
+int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
+    const std::vector<unsigned int> &indices, bool isLight)
+{
+    return this->registerObject(vertices, indices, "", isLight);
+}
+
+int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
+    const std::vector<unsigned int> &indices, const glm::vec3 &color,
+    bool isLight)
+{
+    int id = this->registerObject(vertices, indices, "", isLight);
+    m_renderObjects[id].useTexture = false;
+    m_renderObjects[id].objectColor = color;
+    return id;
+}
+
 void RasterizationRenderer::updateTransform(
     int objectId, const glm::mat4 &modelMatrix)
 {
@@ -169,6 +185,8 @@ void RasterizationRenderer::drawAll()
             } else {
                 m_lightingShader.use();
                 m_lightingShader.setMat4("model", obj.modelMatrix);
+                m_lightingShader.setBool("useTexture", obj.useTexture);
+                m_lightingShader.setVec3("objectColor", obj.objectColor);
             }
 
             glBindTexture(GL_TEXTURE_2D, obj.texture);

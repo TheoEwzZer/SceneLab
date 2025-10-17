@@ -1,5 +1,6 @@
 #include "App.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
+#include "GeometryGenerator.hpp"
 
 #include "Camera.hpp"
 #include "GLFW/glfw3.h"
@@ -12,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <format>
 
 App::App()
 {
@@ -22,9 +24,76 @@ App::App()
 
 App::~App() {}
 
+void App::initGeometryWindow()
+{
+    m_GeometryImguiWindow.onSpawnCube = [this](float size) {
+        GameObject new_obj;
+        auto vertices { GeometryGenerator::generateCube(size) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId
+            = m_renderer->registerObject(vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setName(
+            std::format("Cube {}", m_GeometryImguiWindow.m_cubeCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned cube\n");
+    };
+
+    m_GeometryImguiWindow.onSpawnSphere = [this](float radius, int sectors,
+                                              int stacks) {
+        GameObject new_obj;
+        auto vertices { GeometryGenerator::generateSphere(
+            radius, sectors, stacks) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId
+            = m_renderer->registerObject(vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setName(
+            std::format("Sphere {}", m_GeometryImguiWindow.m_sphereCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned sphere\n");
+    };
+
+    m_GeometryImguiWindow.onSpawnCylinder = [this](float radius, float height,
+                                                int sectors) {
+        GameObject new_obj;
+        auto vertices { GeometryGenerator::generateCylinder(
+            radius, height, sectors) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId
+            = m_renderer->registerObject(vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setName(
+            std::format("Cylinder {}", m_GeometryImguiWindow.m_cylinderCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned cylinder\n");
+    };
+}
+
 void App::init()
 {
-    // Create game objects
+    /*
     m_gameObjects.resize(2);
 
     std::vector<float> vertices = {
@@ -514,6 +583,9 @@ void App::init()
     for (const auto &obj : m_gameObjects) {
         m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
     }
+    */
+
+    this->initGeometryWindow();
 
     // Register key callbacks
     m_renderer->addKeyCallback(
@@ -631,6 +703,10 @@ void App::update()
 
 void App::selectedTransformUI()
 {
+    if (m_gameObjects.empty()) {
+        return;
+    }
+
     ImGui::Begin("Transforms");
     ImGui::Text("Position");
 
@@ -716,12 +792,17 @@ void App::selectedTransformUI()
 
     // Object selector
     ImGui::Text("Selected Object:");
-    if (ImGui::RadioButton("Object 0", selectedObjectIndex == 0)) {
-        selectedObjectIndex = 0;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Object 1", selectedObjectIndex == 1)) {
-        selectedObjectIndex = 1;
+    for (std::size_t i = 0; i < m_gameObjects.size(); ++i) {
+        if (i > 0) {
+            ImGui::SameLine();
+        }
+
+        ImGui::PushID(i);
+        std::string label { m_gameObjects[i].m_name };
+        if (ImGui::RadioButton(label.c_str(), selectedObjectIndex == i)) {
+            selectedObjectIndex = i;
+        }
+        ImGui::PopID();
     }
 
     ImGui::Separator();
@@ -771,6 +852,8 @@ void App::selectedTransformUI()
 void App::render()
 {
     m_renderer->beginFrame();
+
+    m_GeometryImguiWindow.render();
 
     selectedTransformUI();
 
