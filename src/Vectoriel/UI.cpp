@@ -7,21 +7,19 @@ using namespace Vect;
 
 UIDrawer::UIDrawer() :
     m_outlineWidth(0.05f), m_outlineColor(1, 1, 1, 1), m_fillColor(1, 1, 1, 1),
-    m_localScale(1.0f, 1.0f), m_fill(false), m_input_segments(5),
-    m_line_pointA(0, 0), m_line_pointB(1, 1), m_line_width(1.0f),
-    m_circle_radius(1.0f)
+    m_localScale(1.0f, 1.0f), m_line_pointA(0, 0), m_line_pointB(1, 1),
+    m_line_width(1.0f), m_circle_radius(1.0f), m_fill(false),
+    m_input_segments(5)
 {
 }
 
-// TODO: faire des outils par types de primitive (cliquer pour placer dans le
-// scène, changer le curseur pour chaque outil)
-// - Cercle
-// - Carré
-// - Ligne
-// - ...
-
+/**
+ * @brief Rendu des widgets du mode forme
+ * @param app Référence à l'app
+ */
 void UIDrawer::renderUIShape(App *app)
 {
+    // Formes disponibles
     static const char *formes[] = { "House", "Doll", "Letter A" };
     static int current_forme_idx = 0;
 
@@ -63,6 +61,10 @@ void UIDrawer::renderUIShape(App *app)
     }
 }
 
+/**
+ * @brief Rendu des widgets du mode primitive
+ * @param app Référence à l'app
+ */
 void UIDrawer::renderUIPrimitive(App *app)
 {
     static int current_primitive_idx = 0;
@@ -175,22 +177,24 @@ void UIDrawer::renderUIPrimitive(App *app)
 
 void UIDrawer::renderUI(App *app)
 {
-    ImGui::Begin("Dessin vectoriel");
+    static int ui_mode = 0;
 
+    ImGui::Begin("Dessin vectoriel");
     ImGui::Separator();
     ImGui::Text("Primitives");
 
-    static int ui_mode = 0;
-
+    // Selection du mode (Primitive ou Forme)
     ImGui::RadioButton("Mode Primitive", &ui_mode, 0);
     ImGui::RadioButton("Mode Forme", &ui_mode, 1);
     ImGui::Separator();
 
+    // Sélecteurs de couleurs
     ImGui::Text("Couleurs");
     ImGui::ColorEdit4("Couleur Contour", m_outlineColor);
     ImGui::ColorEdit4("Couleur Remplissage", m_fillColor);
     ImGui::Separator();
 
+    // Rendu des widgets d'attributs du mode correspondant
     if (ui_mode == 0) {
         renderUIPrimitive(app);
     } else {
