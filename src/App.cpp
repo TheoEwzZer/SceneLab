@@ -809,6 +809,11 @@ void App::render()
     selectedTransformUI();
     m_image->renderUI();
 
+    glm::vec4 paletteColor;
+    if (m_image->consumeSelectedPaletteColor(paletteColor)) {
+        vectorial_ui.setCurrentColorRGBA(paletteColor, true, true);
+    }
+
     for (const auto &obj : m_gameObjects) {
         if (obj.hasTransformChanged()) {
             m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());

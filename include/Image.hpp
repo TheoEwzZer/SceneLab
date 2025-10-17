@@ -87,10 +87,13 @@ public:
     void setStatusMessage(const std::string &message, float duration = 5.0f,
         bool isError = false);
 
+    bool consumeSelectedPaletteColor(glm::vec4 &outColor);
+
 private:
     // Color palette
-    std::vector<glm::vec3> m_paletteColors;
+    std::vector<glm::vec4> m_paletteColors;
     int m_selectedPaletteIndex = 0;
+    bool m_paletteChanged = false;
 
     // Imported images tracking for sampling
     struct ImportedImage {
