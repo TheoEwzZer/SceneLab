@@ -67,3 +67,4 @@ external/
 # others
 
 imgui.ini
+*.md
