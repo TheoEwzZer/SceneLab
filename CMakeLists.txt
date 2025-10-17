@@ -3,11 +3,28 @@ project(scenelab VERSION 0.1.0 LANGUAGES C CXX)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always -W -Wall -Wextra -Wpedantic")
+
+    # tries to improve compile time
+    string(ASCII 27 Esc)
+
+    find_program(MOLD_EXECUTABLE mold)
+    if(MOLD_EXECUTABLE)
+        message(STATUS "${Esc}[32mYIPPEE!!${Esc}[0m | mold found")
+        set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+    endif()
+
+    find_program(CCACHE_PROGRAM ccache)
+    if(CCACHE_PROGRAM)
+        message(STATUS "${Esc}[32mYIPPEE!!${Esc}[0m | ccache found")
+        set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+        set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
-file(GLOB_RECURSE SOURCES src/**.cpp)
+set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 
+file(GLOB_RECURSE SOURCES src/**.cpp)
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/glad)
