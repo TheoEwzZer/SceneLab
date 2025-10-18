@@ -51,8 +51,16 @@ set(IMGUIZMO_SOURCES
 )
 include_directories(${IMGUIZMO_DIR})
 
+# ImGuiFileDialog
+set(IMGUIFILEDIALOG_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiFileDialog)
+set(IMGUIFILEDIALOG_SOURCES
+    ${IMGUIFILEDIALOG_DIR}/ImGuiFileDialog.cpp
+)
+include_directories(${IMGUIFILEDIALOG_DIR})
+
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/external/stb_image/include)
-add_executable(scenelab ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES})
+add_executable(scenelab ${SOURCES} ${IMGUI_SOURCES} ${IMGUIZMO_SOURCES} ${IMGUIFILEDIALOG_SOURCES})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     find_package(X11 REQUIRED)

@@ -97,7 +97,7 @@ int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
         (void *)(5 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    obj.texture = loadTexture(texturePath);
+    obj.texture = !texturePath.empty() ? loadTexture(texturePath) : 0;
     obj.isActive = true;
     obj.isLight = isLight;
 

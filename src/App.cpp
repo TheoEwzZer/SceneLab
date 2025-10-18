@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "OBJLoader.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
 #include "GeometryGenerator.hpp"
 
@@ -92,6 +93,58 @@ void App::initGeometryWindow()
 
         std::cout << std::format("[INFO] Spawned cylinder\n");
     };
+
+    // not loaded as an object here yet
+    m_GeometryImguiWindow.onLoadModel = [this](const std::string &objName,
+                                            const std::string &objPath) {
+        auto data { OBJLoader::loadOBJ(objName, objPath) };
+
+        m_GeometryImguiWindow.m_modelLibrary.addModel(objName, objPath, data);
+
+        std::cout << std::format(
+            "[INFO] Loaded model {} into library\n", objName);
+    };
+
+    m_GeometryImguiWindow.onSpawnModelInstance =
+        [this](const std::string &name, const std::string &filepath) {
+            auto &modelLib = m_GeometryImguiWindow.m_modelLibrary;
+
+            auto maybeGData = modelLib.getModelData(filepath);
+
+            if (!maybeGData.has_value()) {
+                std::cerr << std::format(
+                    "[ERROR] Model not found in library: {}\n", name);
+                return;
+            }
+
+            const GData &data = maybeGData.value();
+            GameObject new_obj;
+            glm::vec3 randomColor { rand() / (float)RAND_MAX,
+                rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+            new_obj.rendererId = m_renderer->registerObject(
+                data.vertices, {}, randomColor, false);
+            new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+            new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+
+            const auto &models = modelLib.getModels();
+            auto it = models.find(filepath);
+            if (it != models.end()) {
+                modelLib.incrementInstanceCount(filepath);
+                std::size_t instanceNum = modelLib.getInstanceCount(filepath);
+                new_obj.setName(
+                    std::format("{} {}", it->second.name, instanceNum));
+            }
+
+            m_renderer->updateTransform(
+                new_obj.rendererId, new_obj.getModelMatrix());
+
+            m_gameObjects.push_back(new_obj);
+            selectedObjectIndex = m_gameObjects.size() - 1;
+
+            std::cout << std::format(
+                "[INFO] Spawned instance of {}\n", filepath);
+        };
 }
 
 void App::init()
@@ -884,9 +937,11 @@ void App::render()
 {
     m_renderer->beginFrame();
 
-    m_GeometryImguiWindow.render();
-
     selectedTransformUI();
+
+    // same as selectedTransformUI but for Geometry specifically, and put in a
+    // separate class.
+    m_GeometryImguiWindow.render();
 
     for (const auto &obj : m_gameObjects) {
         if (obj.hasTransformChanged()) {
