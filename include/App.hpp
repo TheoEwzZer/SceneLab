@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "GameObject.hpp"
-#include "Camera.hpp"
+#include "CameraManager.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 class App {
@@ -31,7 +31,7 @@ class App {
 
 private:
     std::vector<GameObject> m_gameObjects;
-    Camera m_camera;
+    CameraManager m_camera;
     void init();
     void update();
     void render();

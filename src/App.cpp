@@ -16,8 +16,12 @@
 App::App()
 {
     m_renderer = std::make_unique<RasterizationRenderer>();
-    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
-    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+
+    // cameraId = m_camera.createCamera();
+    // m_renderer->createCameraViews(cameraId);
+    // m_camera.setFocused(cameraId);
+    // m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    // m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
 }
 
 App::~App() {}
@@ -583,6 +587,19 @@ void App::init()
     });
 
     m_renderer->init();
+    m_camera.createCamera();
+    m_camera.createCamera();
+
+    m_camera.setFocused(1);
+    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+    m_renderer->createCameraViews(1, 1920, 1080);
+
+    m_camera.setFocused(2);
+    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+    m_renderer->createCameraViews(2, 1920, 1080);
+    // m_camera.setFocused(2);
 }
 
 void App::update()
@@ -780,11 +797,9 @@ void App::render()
         }
     }
 
-    // Update camera matrices
-    m_renderer->setViewMatrix(m_camera.getViewMatrix());
-    m_renderer->setProjectionMatrix(m_camera.getProjectionMatrix());
+    m_renderer->renderAllViews(m_camera);
 
-    m_renderer->drawAll();
+    // Update camera matrices
     m_renderer->endFrame();
 }
 
