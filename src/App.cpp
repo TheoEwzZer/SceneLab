@@ -719,6 +719,9 @@ void App::init()
                 && m_gameObjects.size() != beforeCount) {
                 selectedObjectIndex = static_cast<int64_t>(m_gameObjects.size())
                     - 1;
+                // Ensure renderer transform matches immediately so gizmo centers on the image
+                auto &obj = m_gameObjects[static_cast<size_t>(selectedObjectIndex)];
+                m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
             }
         }
     });
