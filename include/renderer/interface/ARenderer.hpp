@@ -27,9 +27,19 @@ public:
         const std::vector<unsigned int> &indices,
         const std::string &texturePath, bool isLight, bool is2d = false)
         = 0;
+    virtual int registerObject(const std::vector<float> &vertices,
+        const std::vector<unsigned int> &indices, bool isLight)
+        = 0;
+    virtual int registerObject(const std::vector<float> &vertices,
+        const std::vector<unsigned int> &indices, const glm::vec3 &color,
+        bool isLight)
+        = 0;
     virtual void updateTransform(int objectId, const glm::mat4 &modelMatrix)
         = 0;
     virtual void removeObject(int objectId) = 0;
+    virtual void drawBoundingBox(
+        int objectId, const glm::vec3 &corner1, const glm::vec3 &corner2)
+        = 0;
 
     // Camera Related
     virtual void setViewMatrix(const glm::mat4 &view) = 0;

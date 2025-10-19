@@ -14,6 +14,7 @@
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
+#include "GeometryImguiWindow.hpp"
 #include "Vectoriel.hpp"
 #include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
@@ -32,15 +33,20 @@ class App {
     glm::vec2 mouseDelta { 0.0f };
     glm::vec2 prevMousePos { 0.0f };
 
+    unsigned int selectedObjectIndex { 0 };
+    bool m_showAllBoundingBoxes { false };
     int64_t selectedObjectIndex = -1;
 
 private:
     std::vector<GameObject> m_gameObjects;
     Camera m_camera;
+    GeometryImguiWindow m_GeometryImguiWindow;
+
     void init();
     void update();
     void render();
 
+    void initGeometryWindow();
     void selectedTransformUI();
     void updateCursor();
 

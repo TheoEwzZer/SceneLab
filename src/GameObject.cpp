@@ -1,4 +1,5 @@
 #include "GameObject.hpp"
+#include <cstring>
 #include <glm/gtc/matrix_transform.hpp>
 
 void GameObject::setPosition(const glm::vec3 &pos)
@@ -25,6 +26,11 @@ void GameObject::setScale(const glm::vec3 &scale)
     }
 }
 
+void GameObject::setName(const std::string &name)
+{
+    std::strncpy(m_name, name.c_str(), OBJ_MAX_NAME_SIZE);
+}
+
 const glm::mat4 &GameObject::getModelMatrix() const
 {
     if (m_transformDirty) {
@@ -44,4 +50,10 @@ const glm::mat4 &GameObject::getModelMatrix() const
         m_transformDirty = false;
     }
     return m_modelMatrix;
+}
+
+void GameObject::setAABB(const glm::vec3 &corner1, const glm::vec3 &corner2)
+{
+    m_aabbCorner1 = corner1;
+    m_aabbCorner2 = corner2;
 }
