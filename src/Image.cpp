@@ -607,6 +607,7 @@ void Image::renderUI()
                 const std::string base
                     = m_importedImages[i].path.substr(m_importedImages[i].path.find_last_of("/\\") + 1);
                 const bool isSelected = (m_histogramSelectedIndex == i);
+                ImGui::PushID(i);
                 if (ImGui::Selectable(base.c_str(), isSelected)) {
                     m_histogramSelectedIndex = i;
                     computeHistogramForPath(m_importedImages[i].path);
@@ -614,6 +615,7 @@ void Image::renderUI()
                 if (isSelected) {
                     ImGui::SetItemDefaultFocus();
                 }
+                ImGui::PopID();
             }
             ImGui::EndCombo();
         }

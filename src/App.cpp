@@ -924,6 +924,7 @@ void App::selectedTransformUI()
     if (ImGui::BeginListBox("##object_list",
             ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing()))) {
         for (std::size_t i = 0; i < m_gameObjects.size(); ++i) {
+            ImGui::PushID((int)i);
             const bool isSelected = (selectedObjectIndex == i);
             if (ImGui::Selectable(m_gameObjects[i].m_name, isSelected)) {
                 selectedObjectIndex = i;
@@ -931,6 +932,7 @@ void App::selectedTransformUI()
             if (isSelected) {
                 ImGui::SetItemDefaultFocus();
             }
+            ImGui::PopID();
         }
         ImGui::EndListBox();
     }
