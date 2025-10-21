@@ -14,28 +14,47 @@
 #include <glm/gtc/matrix_transform.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../external/stb_image/include/stb_image_write.h"
 
-    RasterizationRenderer::RasterizationRenderer()
-    {
-        std::cout << "Rasterized Renderer Start" << std::endl;
-        glEnable(GL_DEPTH_TEST);
+RasterizationRenderer::RasterizationRenderer()
+{
+    std::cout << "Rasterized Renderer Start" << std::endl;
+    glEnable(GL_DEPTH_TEST);
 
-        m_lightingShader.init(
-            "../assets/shaders/shader.vert", "../assets/shaders/lighting.frag");
-        m_lightingShader.use();
-        m_lightingShader.setVec3("lightColor", { 1.0f, 1.0f, 1.0f });
-        m_lightingShader.setVec3("lightPos", { 2.f, 0.f, 0.0f });
+    m_lightingShader.init(
+        "../assets/shaders/shader.vert", "../assets/shaders/lighting.frag");
+    m_lightingShader.use();
+    m_lightingShader.setVec3("lightColor", { 1.0f, 1.0f, 1.0f });
+    m_lightingShader.setVec3("lightPos", { 2.f, 0.f, 0.0f });
 
-        m_pointLightShader.init(
-            "../assets/shaders/shader.vert", "../assets/shaders/pointLight.frag");
+    m_pointLightShader.init(
+        "../assets/shaders/shader.vert", "../assets/shaders/pointLight.frag");
+    m_vectorialShader.init(
+        "../assets/shaders/shader_vect.vert", "../assets/shaders/vect.frag");
 
-        // Initialize view and projection matrices
-        m_viewMatrix = glm::mat4(1.0f);
-        m_viewMatrix = glm::translate(m_viewMatrix, glm::vec3(0.0f, 0.0f, -4.0f));
-        m_projMatrix = glm::perspective(
-            glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+    m_bboxShader.init(
+        "../assets/shaders/shader.vert", "../assets/shaders/bbox.frag");
+
+    // Initialize view and projection matrices
+    m_viewMatrix = glm::mat4(1.0f);
+    m_viewMatrix = glm::translate(m_viewMatrix, glm::vec3(0.0f, 0.0f, -4.0f));
+    m_projMatrix = glm::perspective(
+        glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+}
+
+int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
+    const std::vector<unsigned int> &indices, const std::string &texturePath,
+    bool isLight, bool is2D)
+{
+
+    int id;
+    if (!m_freeSlots.empty()) {
+        // Reuse a free slot
+        id = m_freeSlots.back();
+        m_freeSlots.pop_back();
+    } else {
+        // Add new slot
+        id = m_renderObjects.size();
+        m_renderObjects.emplace_back();
     }
 
     int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
@@ -107,6 +126,48 @@
         if (objectId >= 0 && objectId < static_cast<int>(m_renderObjects.size())) {
             m_renderObjects[objectId].modelMatrix = modelMatrix;
         }
+    // position attribute (3 floats)
+    glVertexAttribPointer(
+        0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    // texture coord attribute (2 floats)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+        (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // normal vector attribute
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+        (void *)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    obj.texture = !texturePath.empty() ? loadTexture(texturePath) : 0;
+    obj.isActive = true;
+    obj.isLight = isLight;
+    obj.is2D = is2D;
+
+    return id;
+}
+
+int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
+    const std::vector<unsigned int> &indices, bool isLight)
+{
+    return this->registerObject(vertices, indices, "", isLight);
+}
+
+int RasterizationRenderer::registerObject(const std::vector<float> &vertices,
+    const std::vector<unsigned int> &indices, const glm::vec3 &color,
+    bool isLight)
+{
+    int id = this->registerObject(vertices, indices, "", isLight);
+    m_renderObjects[id].useTexture = false;
+    m_renderObjects[id].objectColor = color;
+    return id;
+}
+
+void RasterizationRenderer::updateTransform(
+    int objectId, const glm::mat4 &modelMatrix)
+{
+    if (objectId >= 0 && objectId < static_cast<int>(m_renderObjects.size())) {
+        m_renderObjects[objectId].modelMatrix = modelMatrix;
     }
 
     void RasterizationRenderer::removeObject(int objectId)
@@ -114,14 +175,38 @@
         if (objectId >= 0 && objectId < static_cast<int>(m_renderObjects.size())) {
             RenderObject &obj = m_renderObjects[objectId];
 
-            // Cleanup OpenGL resources
-            glDeleteVertexArrays(1, &obj.VAO);
-            glDeleteBuffers(1, &obj.VBO);
-            glDeleteBuffers(1, &obj.EBO);
-            glDeleteTextures(1, &obj.texture);
+        // Cleanup OpenGL resources
+        glDeleteVertexArrays(1, &obj.VAO);
+        glDeleteBuffers(1, &obj.VBO);
+        glDeleteBuffers(1, &obj.EBO);
+        glDeleteTextures(1, &obj.texture);
+        glDeleteVertexArrays(1, &obj.bboxVAO);
+        glDeleteBuffers(1, &obj.bboxVBO);
 
-            obj.isActive = false;
-            m_freeSlots.push_back(objectId);
+        obj.isActive = false;
+        m_freeSlots.push_back(objectId);
+    }
+}
+
+void RasterizationRenderer::beginFrame()
+{
+    glClearColor(0.4f, 0.2f, 0.2f, 1.0f);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Set view and projection matrices once per frame
+    m_vectorialShader.use();
+    m_vectorialShader.setMat4("view", m_viewMatrix);
+    m_vectorialShader.setMat4("projection", m_projMatrix);
+
+    m_lightingShader.use();
+    m_lightingShader.setMat4("view", m_viewMatrix);
+    m_lightingShader.setMat4("projection", m_projMatrix);
+    for (size_t i = 0; i < m_renderObjects.size(); ++i) {
+        const auto &obj = m_renderObjects[i];
+        if (obj.isLight) {
+            m_lightingShader.setVec3(
+                "lightPos", glm::vec3(obj.modelMatrix[3]));
         }
     }
 
@@ -169,11 +254,16 @@
             if (obj.isLight) {
                 m_pointLightShader.use();
                 m_pointLightShader.setMat4("model", obj.modelMatrix);
-                m_pointLightShader.setMat4("view", m_viewMatrix);
-                m_pointLightShader.setMat4("projection", m_projMatrix);
+            } else if (obj.is2D) {
+                m_vectorialShader.use();
+                m_vectorialShader.setMat4("model", obj.modelMatrix);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             } else {
                 m_lightingShader.use();
                 m_lightingShader.setMat4("model", obj.modelMatrix);
+                m_lightingShader.setBool("useTexture", obj.useTexture);
+                m_lightingShader.setVec3("objectColor", obj.objectColor);
             }
 
             // Bind textures and VAO
@@ -257,3 +347,79 @@
 
         return texture;
     }
+    stbi_image_free(data);
+
+    return texture;
+}
+
+void RasterizationRenderer::createBoundingBoxBuffers(RenderObject &obj)
+{
+    glGenVertexArrays(1, &obj.bboxVAO);
+    glGenBuffers(1, &obj.bboxVBO);
+
+    glBindVertexArray(obj.bboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, obj.bboxVBO);
+
+    glBufferData(
+        GL_ARRAY_BUFFER, 24 * 3 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(
+        0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+void RasterizationRenderer::drawBoundingBox(
+    int objectId, const glm::vec3 &corner1, const glm::vec3 &corner2)
+{
+    if (objectId == -1 || objectId >= static_cast<int>(m_renderObjects.size()))
+        [[unlikely]] {
+        return;
+    }
+
+    RenderObject &obj = m_renderObjects[objectId];
+
+    if (!obj.isActive) [[unlikely]] {
+        return;
+    }
+    if (obj.bboxVAO == 0) [[unlikely]] {
+        createBoundingBoxBuffers(obj);
+    }
+
+    glm::vec3 min = glm::min(corner1, corner2);
+    glm::vec3 max = glm::max(corner1, corner2);
+
+    // clang-format off
+    float bboxVertices[24 * 3] = {
+        min.x, min.y, min.z,  max.x, min.y, min.z,
+        max.x, min.y, min.z,  max.x, max.y, min.z,
+        max.x, max.y, min.z,  min.x, max.y, min.z,
+        min.x, max.y, min.z,  min.x, min.y, min.z,
+
+        min.x, min.y, max.z,  max.x, min.y, max.z,
+        max.x, min.y, max.z,  max.x, max.y, max.z,
+        max.x, max.y, max.z,  min.x, max.y, max.z,
+        min.x, max.y, max.z,  min.x, min.y, max.z,
+
+        min.x, min.y, min.z,  min.x, min.y, max.z,
+        max.x, min.y, min.z,  max.x, min.y, max.z,
+        max.x, max.y, min.z,  max.x, max.y, max.z,
+        min.x, max.y, min.z,  min.x, max.y, max.z
+    };
+    // clang-format on
+
+    glBindBuffer(GL_ARRAY_BUFFER, obj.bboxVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(bboxVertices), bboxVertices);
+
+    m_bboxShader.use();
+    m_bboxShader.setMat4("view", m_viewMatrix);
+    m_bboxShader.setMat4("projection", m_projMatrix);
+    m_bboxShader.setMat4("model", obj.modelMatrix);
+    m_bboxShader.setVec3("bboxColor", glm::vec3(0.0f, 1.0f, 0.0f)); // green
+
+    glBindVertexArray(obj.bboxVAO);
+    glDrawArrays(GL_LINES, 0, 24);
+
+    glBindVertexArray(0);
+}

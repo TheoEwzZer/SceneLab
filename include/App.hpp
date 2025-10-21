@@ -7,10 +7,16 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <utility>
+#include <string>
 
 #include "GameObject.hpp"
 #include "CameraManager.hpp"
+#include "GeometryImguiWindow.hpp"
+#include "Vectoriel.hpp"
+#include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 class App {
@@ -27,16 +33,23 @@ class App {
     glm::vec2 mouseDelta { 0.0f };
     glm::vec2 prevMousePos { 0.0f };
 
-    unsigned int selectedObjectIndex = 1;
+    bool m_showAllBoundingBoxes { false };
+    int64_t selectedObjectIndex = -1;
 
 private:
     std::vector<GameObject> m_gameObjects;
     CameraManager m_camera;
+    GeometryImguiWindow m_GeometryImguiWindow;
+
     void init();
     void update();
     void render();
 
+    void initGeometryWindow();
     void selectedTransformUI();
+    void updateCursor();
+
+    Vect::UIDrawer vectorial_ui;
 
 public:
     explicit App();
@@ -46,6 +59,12 @@ public:
     App &operator=(const App &) = delete;
 
     void run();
+    GameObject &registerObject(GameObject &object);
 
     std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<Image> m_image;
+
+    // Current gizmo operation (for cursor state)
+    enum class GizmoOp { Translate = 0, Rotate = 1, Scale = 2 };
+    GizmoOp m_currentGizmoOperation = GizmoOp::Translate;
 };

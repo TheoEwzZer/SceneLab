@@ -1,5 +1,8 @@
 #include "App.hpp"
+#include "OBJLoader.hpp"
+#include "GameObject.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
+#include "GeometryGenerator.hpp"
 
 #include "Camera.hpp"
 #include "GLFW/glfw3.h"
@@ -8,10 +11,17 @@
 #include "ImGuizmo.h"
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+#include <format>
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
 
 App::App()
 {
@@ -26,10 +36,133 @@ App::App()
 
 App::~App() {}
 
+void App::initGeometryWindow()
+{
+    m_GeometryImguiWindow.onSpawnCube = [this](float size) {
+        GameObject new_obj;
+        auto data { GeometryGenerator::generateCube(size) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId = m_renderer->registerObject(
+            data.vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+        new_obj.setName(
+            std::format("Cube {}", m_GeometryImguiWindow.m_cubeCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned cube\n");
+    };
+
+    m_GeometryImguiWindow.onSpawnSphere = [this](float radius, int sectors,
+                                              int stacks) {
+        GameObject new_obj;
+        auto data { GeometryGenerator::generateSphere(
+            radius, sectors, stacks) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId = m_renderer->registerObject(
+            data.vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+        new_obj.setName(
+            std::format("Sphere {}", m_GeometryImguiWindow.m_sphereCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned sphere\n");
+    };
+
+    m_GeometryImguiWindow.onSpawnCylinder = [this](float radius, float height,
+                                                int sectors) {
+        GameObject new_obj;
+        auto data { GeometryGenerator::generateCylinder(
+            radius, height, sectors) };
+        glm::vec3 randomColor { rand() / (float)RAND_MAX,
+            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+        new_obj.rendererId = m_renderer->registerObject(
+            data.vertices, {}, randomColor, false);
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+        new_obj.setName(
+            std::format("Cylinder {}", m_GeometryImguiWindow.m_cylinderCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
+
+        m_gameObjects.push_back(new_obj);
+        selectedObjectIndex = m_gameObjects.size() - 1;
+
+        std::cout << std::format("[INFO] Spawned cylinder\n");
+    };
+
+    // not loaded as an object here yet
+    m_GeometryImguiWindow.onLoadModel = [this](const std::string &objName,
+                                            const std::string &objPath) {
+        auto data { OBJLoader::loadOBJ(objName, objPath) };
+
+        m_GeometryImguiWindow.m_modelLibrary.addModel(objName, objPath, data);
+
+        std::cout << std::format(
+            "[INFO] Loaded model {} into library\n", objName);
+    };
+
+    m_GeometryImguiWindow.onSpawnModelInstance =
+        [this](const std::string &name, const std::string &filepath) {
+            auto &modelLib = m_GeometryImguiWindow.m_modelLibrary;
+
+            auto maybeGData = modelLib.getModelData(filepath);
+
+            if (!maybeGData.has_value()) {
+                std::cerr << std::format(
+                    "[ERROR] Model not found in library: {}\n", name);
+                return;
+            }
+
+            const GData &data = maybeGData.value();
+            GameObject new_obj;
+            glm::vec3 randomColor { rand() / (float)RAND_MAX,
+                rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
+
+            new_obj.rendererId = m_renderer->registerObject(
+                data.vertices, {}, randomColor, false);
+            new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+            new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+
+            const auto &models = modelLib.getModels();
+            auto it = models.find(filepath);
+            if (it != models.end()) {
+                modelLib.incrementInstanceCount(filepath);
+                std::size_t instanceNum = modelLib.getInstanceCount(filepath);
+                new_obj.setName(
+                    std::format("{} {}", it->second.name, instanceNum));
+            }
+
+            m_renderer->updateTransform(
+                new_obj.rendererId, new_obj.getModelMatrix());
+
+            m_gameObjects.push_back(new_obj);
+            selectedObjectIndex = m_gameObjects.size() - 1;
+
+            std::cout << std::format(
+                "[INFO] Spawned instance of {}\n", filepath);
+        };
+}
+
 void App::init()
 {
+    /*
     // Create game objects
-    m_gameObjects.resize(2);
+    m_gameObjects.resize(10);
 
     std::vector<float> vertices = {
         -0.5f,
@@ -511,6 +644,9 @@ void App::init()
     m_gameObjects[1].rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
 
+    // Make the initial asset visible in Image UI for histogram selection
+    m_image->addImportedImagePath("../assets/wish-you-where-here.jpg");
+
     // Set initial position
     m_gameObjects[1].setPosition({ 1.2f, 0.f, 0.0f });
     m_gameObjects[1].setScale(glm::vec3 { 0.2f });
@@ -518,6 +654,9 @@ void App::init()
     for (const auto &obj : m_gameObjects) {
         m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
     }
+    */
+
+    this->initGeometryWindow();
 
     // Register key callbacks
     m_renderer->addKeyCallback(
@@ -571,6 +710,24 @@ void App::init()
         rayWor = glm::normalize(rayWor);
     });
 
+    // File drop import
+    m_renderer->addDropCallback([&](const std::vector<std::string> &paths,
+                                    double mouseX, double mouseY) {
+        for (const auto &p : paths) {
+            const std::size_t beforeCount = m_gameObjects.size();
+            const bool added
+                = m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
+            if (added && m_gameObjects.size() > 0
+                && m_gameObjects.size() != beforeCount) {
+                selectedObjectIndex = static_cast<int64_t>(m_gameObjects.size())
+                    - 1;
+                // Ensure renderer transform matches immediately so gizmo centers on the image
+                auto &obj = m_gameObjects[static_cast<size_t>(selectedObjectIndex)];
+                m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
+            }
+        }
+    });
+
     // Register mouse movement callback
     m_renderer->addCursorCallback([&](double x, double y) {
         m_currentMousePos = glm::vec2(x, y);
@@ -604,6 +761,7 @@ void App::init()
 
 void App::update()
 {
+    m_image->updateMessageTimer(0.016f);
     if (wPressed) {
         auto pos = m_camera.getPosition();
         auto rot = m_camera.getRotation();
@@ -646,8 +804,19 @@ void App::update()
     // ImGuizmo manipulation moved to render() function
 }
 
+// Move l'objet dans le vecteur
+GameObject &App::registerObject(GameObject &obj)
+{
+    selectedObjectIndex = m_gameObjects.size();
+    return (m_gameObjects.emplace_back(std::move(obj)));
+}
+
 void App::selectedTransformUI()
 {
+    if (m_gameObjects.empty() || selectedObjectIndex == -1) {
+        return;
+    }
+
     ImGui::Begin("Transforms");
     ImGui::Text("Position");
 
@@ -718,6 +887,19 @@ void App::selectedTransformUI()
             { std::stof(xScale), std::stof(yScale), std::stof(zScale) });
     } catch (const std::invalid_argument &) {
     }
+
+    // Bounding box per obj
+    ImGui::Separator();
+
+    if (!m_showAllBoundingBoxes) {
+        bool bboxActive
+            = m_gameObjects[selectedObjectIndex].isBoundingBoxActive();
+        if (ImGui::Checkbox("Show Bounding Box", &bboxActive)) {
+            m_gameObjects[selectedObjectIndex].setBoundingBoxActive(
+                bboxActive);
+        }
+    }
+
     ImGui::End();
 
     // ImGuizmo manipulation
@@ -730,18 +912,6 @@ void App::selectedTransformUI()
     static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
 
     ImGui::Begin("Transformation Type");
-
-    // Object selector
-    ImGui::Text("Selected Object:");
-    if (ImGui::RadioButton("Object 0", selectedObjectIndex == 0)) {
-        selectedObjectIndex = 0;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Object 1", selectedObjectIndex == 1)) {
-        selectedObjectIndex = 1;
-    }
-
-    ImGui::Separator();
 
     if (ImGui::RadioButton(
             "Translate (T)", currentGizmoOperation == ImGuizmo::TRANSLATE)) {
@@ -756,6 +926,40 @@ void App::selectedTransformUI()
     if (ImGui::RadioButton(
             "Scale (S)", currentGizmoOperation == ImGuizmo::SCALE)) {
         currentGizmoOperation = ImGuizmo::SCALE;
+    }
+
+    // All bounding boxes
+    ImGui::Separator();
+
+    ImGui::Checkbox("Show All Bounding Boxes", &m_showAllBoundingBoxes);
+    if (!m_showAllBoundingBoxes) {
+        ImGui::SameLine();
+        if (ImGui::Button("Hide All")) {
+            for (auto &obj : m_gameObjects) {
+                obj.setBoundingBoxActive(false);
+            }
+        }
+    }
+
+    // Object selector
+
+    ImGui::Separator();
+
+    ImGui::Text("Selected Object:");
+    if (ImGui::BeginListBox("##object_list",
+            ImVec2(0, 5 * ImGui::GetTextLineHeightWithSpacing()))) {
+        for (std::size_t i = 0; i < m_gameObjects.size(); ++i) {
+            ImGui::PushID((int)i);
+            const bool isSelected = (selectedObjectIndex == i);
+            if (ImGui::Selectable(m_gameObjects[i].m_name, isSelected)) {
+                selectedObjectIndex = i;
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndListBox();
     }
 
     ImGui::End();
@@ -783,13 +987,40 @@ void App::selectedTransformUI()
             m_gameObjects[selectedObjectIndex].setScale(scale);
         }
     }
+
+    switch (currentGizmoOperation) {
+        case ImGuizmo::TRANSLATE:
+            m_currentGizmoOperation = GizmoOp::Translate;
+            break;
+        case ImGuizmo::ROTATE:
+            m_currentGizmoOperation = GizmoOp::Rotate;
+            break;
+        case ImGuizmo::SCALE:
+            m_currentGizmoOperation = GizmoOp::Scale;
+            break;
+        default:
+            m_currentGizmoOperation = GizmoOp::Translate;
+            break;
+    }
 }
 
 void App::render()
 {
     m_renderer->beginFrame();
 
+    vectorial_ui.renderUI(this);
+
     selectedTransformUI();
+    m_image->renderUI();
+
+    glm::vec4 paletteColor;
+    if (m_image->consumeSelectedPaletteColor(paletteColor)) {
+        vectorial_ui.setCurrentColorRGBA(paletteColor, true, true);
+    }
+
+    // same as selectedTransformUI but for Geometry specifically, and put in a
+    // separate class.
+    m_GeometryImguiWindow.render();
 
     for (const auto &obj : m_gameObjects) {
         if (obj.hasTransformChanged()) {
@@ -800,6 +1031,19 @@ void App::render()
     m_renderer->renderAllViews(m_camera);
 
     // Update camera matrices
+    m_renderer->drawAll();
+
+    for (const auto &obj : m_gameObjects) {
+        if (m_showAllBoundingBoxes || obj.isBoundingBoxActive()) [[unlikely]] {
+            m_renderer->drawBoundingBox(
+                obj.rendererId, obj.getAABBCorner1(), obj.getAABBCorner2());
+        }
+    }
+    m_image->handleFrameExport(m_renderer->getWindow());
+
+    // Update cursor state at end of frame UI decisions
+    updateCursor();
+
     m_renderer->endFrame();
 }
 
@@ -811,4 +1055,40 @@ void App::run()
         update();
         render();
     }
+}
+
+// Map current interaction state to cursor shape (5+ states)
+void App::updateCursor()
+{
+    // Priority 1: camera panning (RMB held)
+    if (firstMouse) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+        return;
+    }
+
+    // Priority 2: ImGuizmo operation (only while actively manipulating)
+    if (ImGuizmo::IsUsing()) {
+        switch (m_currentGizmoOperation) {
+            case GizmoOp::Translate:
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                return;
+            case GizmoOp::Rotate:
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+                return;
+            case GizmoOp::Scale:
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+                return;
+            default:
+                break;
+        }
+    }
+
+    // Priority 3: Text input editing in ImGui
+    if (ImGui::GetIO().WantTextInput) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
+        return;
+    }
+
+    // Default: generic pointer
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }

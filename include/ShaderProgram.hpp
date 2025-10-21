@@ -89,6 +89,12 @@ public:
             GL_FALSE, glm::value_ptr(mat4));
     }
 
+    void setBool(std::string uniformName, bool value)
+    {
+        glUniform1i(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
+    }
+
 private:
     unsigned int m_shaderProgram;
 };
