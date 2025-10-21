@@ -62,3 +62,9 @@ external/
 
 # debug information files
 *.dwo
+
+
+# others
+
+imgui.ini
+*.md

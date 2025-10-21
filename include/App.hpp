@@ -7,12 +7,20 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <utility>
+#include <string>
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
 #include "SceneGraph.hpp"
+#include "CameraManager.hpp"
+#include "GeometryImguiWindow.hpp"
+#include "Vectoriel.hpp"
+#include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
+#include "imgui.h"
 
 class App {
 
@@ -35,12 +43,25 @@ class App {
 private:
     SceneGraph m_sceneGraph;
 
-    Camera m_camera;
+    bool m_showAllBoundingBoxes { false };
+    int64_t selectedObjectIndex = -1;
+
+    std::vector<GameObject> m_gameObjects;
+    CameraManager m_camera;
+    GeometryImguiWindow m_GeometryImguiWindow;
+
     void init();
     void update();
     void render();
 
+    void initGeometryWindow();
     void selectedTransformUI();
+    void updateCursor();
+    void resetAllCameraPoses();
+    void renderCameraGizmo(int cameraId, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize, bool isHovered);
+    void drawBoundingBoxes();
+
+    Vect::UIDrawer vectorial_ui;
 
     // Helper function for multi-selection validation
     bool canAddToSelection(SceneGraph::Node *nodeToAdd);
@@ -53,6 +74,12 @@ public:
     App &operator=(const App &) = delete;
 
     void run();
+    GameObject &registerObject(GameObject &object);
 
     std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<Image> m_image;
+
+    // Current gizmo operation (for cursor state)
+    enum class GizmoOp { Translate = 0, Rotate = 1, Scale = 2 };
+    GizmoOp m_currentGizmoOperation = GizmoOp::Translate;
 };
