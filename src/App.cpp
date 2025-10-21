@@ -650,11 +650,19 @@ void App::init()
         0.0f,
     };
 
-    // Register with renderer
-    m_gameObjects[0].rendererId = m_renderer->registerObject(
+m_sceneGraph.setRoot(std::make_unique<SceneGraph::Node>());
+    m_sceneGraph.getRoot()->setData(GameObject());
+    m_sceneGraph.getRoot()->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", false);
-    m_gameObjects[1].rendererId = m_renderer->registerObject(
+    m_sceneGraph.getRoot()->addChild(std::make_unique<SceneGraph::Node>());
+    m_sceneGraph.getRoot()->getChild(0)->setData(GameObject());
+    m_sceneGraph.getRoot()->getChild(0)->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
+    m_sceneGraph.getRoot()->addChild(std::make_unique<SceneGraph::Node>());
+    m_sceneGraph.getRoot()->getChild(1)->setData(GameObject());
+    m_sceneGraph.getRoot()->getChild(1)->getData().rendererId = m_renderer->registerObject(
+        verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", false);
+    m_selectedNodes.push_back(m_sceneGraph.getRoot());
 
     // Make the initial asset visible in Image UI for histogram selection
     m_image->addImportedImagePath("../assets/wish-you-where-here.jpg");
@@ -695,6 +703,10 @@ void App::init()
         GLFW_KEY_LEFT_CONTROL, GLFW_PRESS, [&]() { leftCtrlPressed = true; });
     m_renderer->addKeyCallback(GLFW_KEY_LEFT_CONTROL, GLFW_RELEASE,
         [&]() { leftCtrlPressed = false; });
+    m_renderer->addKeyCallback(
+        GLFW_KEY_LEFT_SHIFT, GLFW_PRESS, [&]() { leftShiftPressed = true; });
+    m_renderer->addKeyCallback(GLFW_KEY_LEFT_SHIFT, GLFW_RELEASE,
+        [&]() { leftShiftPressed = false; });
 
     // Register mouse button callbacks
     m_renderer->addKeyCallback(
@@ -829,11 +841,27 @@ GameObject &App::registerObject(GameObject &obj)
 
 void App::selectedTransformUI()
 {
+    // Render scene graph hierarchy with selection
+    m_sceneGraph.renderHierarchyUI(
+        m_selectedNodes,
+        leftShiftPressed,
+        [this](SceneGraph::Node *node) { return this->canAddToSelection(node); }
+    );
+
     if (m_gameObjects.empty() || selectedObjectIndex == -1) {
         return;
     }
 
     ImGui::Begin("Transforms");
+
+    if (m_selectedNodes.size() == 1) {
+        ImGui::Text("1 object selected");
+    } else {
+        ImGui::Text("%zu objects selected", m_selectedNodes.size());
+    }
+
+    ImGui::Separator();
+
     ImGui::Text("Position");
 
     // Position
@@ -841,21 +869,39 @@ void App::selectedTransformUI()
     static char xTransform[64];
     static char yTransform[64];
     static char zTransform[64];
+    static glm::vec3 lastInputPosition = glm::vec3(0.0f);
+    static bool positionInitialized = false;
 
-    snprintf(xTransform, sizeof(xTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().x);
-    snprintf(yTransform, sizeof(yTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().y);
-    snprintf(zTransform, sizeof(zTransform), "%.3f",
-        m_gameObjects[selectedObjectIndex].getPosition().z);
+    // For multiple selections, show the first object's values
+    glm::vec3 currentPos = m_selectedNodes[0]->getData().getPosition();
+
+    // Initialize or update display values
+    if (!positionInitialized || m_selectedNodes.size() == 1) {
+        snprintf(xTransform, sizeof(xTransform), "%.3f", currentPos.x);
+        snprintf(yTransform, sizeof(yTransform), "%.3f", currentPos.y);
+        snprintf(zTransform, sizeof(zTransform), "%.3f", currentPos.z);
+        lastInputPosition = currentPos;
+        positionInitialized = true;
+    }
 
     ImGui::InputText("x", xTransform, IM_ARRAYSIZE(xTransform));
     ImGui::InputText("y", yTransform, IM_ARRAYSIZE(yTransform));
     ImGui::InputText("z", zTransform, IM_ARRAYSIZE(zTransform));
 
     try {
-        m_gameObjects[selectedObjectIndex].setPosition({ std::stof(xTransform),
-            std::stof(yTransform), std::stof(zTransform) });
+        glm::vec3 newInputPos = { std::stof(xTransform), std::stof(yTransform), std::stof(zTransform) };
+
+        // Calculate delta from last input
+        glm::vec3 delta = newInputPos - lastInputPosition;
+
+        // Only apply if there's an actual change
+        if (glm::length(delta) > 0.0001f) {
+            // Apply delta to all selected objects
+            for (auto *node : m_selectedNodes) {
+                node->getData().setPosition(node->getData().getPosition() + delta);
+            }
+            lastInputPosition = newInputPos;
+        }
     } catch (const std::invalid_argument &) {
     }
 
@@ -865,21 +911,40 @@ void App::selectedTransformUI()
     char xRot[64];
     char yRot[64];
     char zRot[64];
+    static glm::vec3 lastInputRotation = glm::vec3(0.0f);
+    static bool rotationInitialized = false;
+
     // Convert radians to degrees for display
-    snprintf(xRot, sizeof(xRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().x));
-    snprintf(yRot, sizeof(yRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().y));
-    snprintf(zRot, sizeof(zRot), "%.3f",
-        glm::degrees(m_gameObjects[selectedObjectIndex].getRotation().z));
+    glm::vec3 currentRotDeg = glm::degrees(m_selectedNodes[0]->getData().getRotation());
+
+    // Initialize or update display values
+    if (!rotationInitialized || m_selectedNodes.size() == 1) {
+        snprintf(xRot, sizeof(xRot), "%.3f", currentRotDeg.x);
+        snprintf(yRot, sizeof(yRot), "%.3f", currentRotDeg.y);
+        snprintf(zRot, sizeof(zRot), "%.3f", currentRotDeg.z);
+        lastInputRotation = currentRotDeg;
+        rotationInitialized = true;
+    }
+
     ImGui::InputText("rot x", xRot, IM_ARRAYSIZE(xRot));
     ImGui::InputText("rot y", yRot, IM_ARRAYSIZE(yRot));
     ImGui::InputText("rot z", zRot, IM_ARRAYSIZE(zRot));
     try {
         // Convert degrees to radians when setting
-        m_gameObjects[selectedObjectIndex].setRotation(
-            { glm::radians(std::stof(xRot)), glm::radians(std::stof(yRot)),
-                glm::radians(std::stof(zRot)) });
+        glm::vec3 newInputRotDeg = { std::stof(xRot), std::stof(yRot), std::stof(zRot) };
+
+        // Calculate delta from last input
+        glm::vec3 deltaDeg = newInputRotDeg - lastInputRotation;
+
+        // Only apply if there's an actual change
+        if (glm::length(deltaDeg) > 0.0001f) {
+            glm::vec3 deltaRad = glm::radians(deltaDeg);
+            // Apply delta to all selected objects
+            for (auto *node : m_selectedNodes) {
+                node->getData().setRotation(node->getData().getRotation() + deltaRad);
+            }
+            lastInputRotation = newInputRotDeg;
+        }
     } catch (const std::invalid_argument &) {
     }
 
@@ -889,21 +954,46 @@ void App::selectedTransformUI()
     char xScale[64];
     char yScale[64];
     char zScale[64];
-    snprintf(xScale, sizeof(xScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().x);
-    snprintf(yScale, sizeof(yScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().y);
-    snprintf(zScale, sizeof(zScale), "%.3f",
-        m_gameObjects[selectedObjectIndex].getScale().z);
+    static glm::vec3 lastInputScale = glm::vec3(1.0f);
+    static bool scaleInitialized = false;
+
+    glm::vec3 currentScale = m_selectedNodes[0]->getData().getScale();
+
+    // Initialize or update display values
+    if (!scaleInitialized || m_selectedNodes.size() == 1) {
+        snprintf(xScale, sizeof(xScale), "%.3f", currentScale.x);
+        snprintf(yScale, sizeof(yScale), "%.3f", currentScale.y);
+        snprintf(zScale, sizeof(zScale), "%.3f", currentScale.z);
+        lastInputScale = currentScale;
+        scaleInitialized = true;
+    }
+
     ImGui::InputText("scale x", xScale, IM_ARRAYSIZE(xScale));
     ImGui::InputText("scale y", yScale, IM_ARRAYSIZE(yScale));
     ImGui::InputText("scale z", zScale, IM_ARRAYSIZE(zScale));
     try {
-        m_gameObjects[selectedObjectIndex].setScale(
-            { std::stof(xScale), std::stof(yScale), std::stof(zScale) });
+        glm::vec3 newInputScale = { std::stof(xScale), std::stof(yScale), std::stof(zScale) };
+
+        // Calculate scale ratio from last input
+        glm::vec3 scaleRatio = newInputScale / lastInputScale;
+
+        // Only apply if there's an actual change
+        if (glm::length(scaleRatio - glm::vec3(1.0f)) > 0.0001f) {
+            // Apply scale ratio to all selected objects
+            for (auto *node : m_selectedNodes) {
+                node->getData().setScale(node->getData().getScale() * scaleRatio);
+            }
+            lastInputScale = newInputScale;
+        }
     } catch (const std::invalid_argument &) {
     }
 
+    // ImGuizmo manipulation
+    
+    auto view = m_camera.getViewMatrix();
+    auto proj = m_camera.getProjectionMatrix();
+
+    glm::mat4 worldMatrix = m_selectedNodes[0]->getWorldMatrix();
     // Bounding box per obj
     ImGui::Separator();
 
@@ -919,6 +1009,11 @@ void App::selectedTransformUI()
     ImGui::End();
 
     static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::TRANSLATE);
+
+    glm::mat4 parentWorldMatrix = m_selectedNodes[0]->getParentWorldMatrix();
+
+    static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::TRANSLATE);
+    static ImGuizmo::MODE currentGizmoMode(ImGuizmo::LOCAL);
 
     ImGui::Begin("Transformation Type");
 
@@ -973,15 +1068,18 @@ void App::selectedTransformUI()
 
     ImGui::End();
 
-    /*
-    if (ImGui::IsKeyPressed(ImGuiKey_T))
-    currentGizmoOperation = ImGuizmo::TRANSLATE;
-    if (ImGui::IsKeyPressed(ImGuiKey_R))
-    currentGizmoOperation = ImGuizmo::ROTATE;
-    if (ImGui::IsKeyPressed(ImGuiKey_S))
-    currentGizmoOperation = ImGuizmo::SCALE;
-    */
+    // Store initial transforms for relative manipulation
+    static std::vector<glm::vec3> initialPositions;
+    static std::vector<glm::vec3> initialRotations;
+    static std::vector<glm::vec3> initialScales;
+    static glm::vec3 primaryInitialPos;
+    static glm::vec3 primaryInitialRot;
+    static glm::vec3 primaryInitialScale;
+    static bool isManipulating = false;
 
+    if (ImGuizmo::Manipulate(&view[0][0], &proj[0][0], currentGizmoOperation,
+            currentGizmoMode, &worldMatrix[0][0])) {
+        // Only update if ImGuizmo is actually being used
     switch (currentGizmoOperation) {
         case ImGuizmo::TRANSLATE:
             m_currentGizmoOperation = GizmoOp::Translate;
@@ -1031,8 +1129,52 @@ void App::renderCameraGizmo(int cameraId, const Camera& camera, ImVec2 imagePos,
     if (ImGuizmo::Manipulate(&view[0][0], &proj[0][0], operation,
             ImGuizmo::WORLD, &model[0][0])) {
         if (ImGuizmo::IsUsing()) {
+            // Store initial state when starting manipulation
+            if (!isManipulating) {
+                isManipulating = true;
+                primaryInitialPos = m_selectedNodes[0]->getData().getPosition();
+                primaryInitialRot = m_selectedNodes[0]->getData().getRotation();
+                primaryInitialScale = m_selectedNodes[0]->getData().getScale();
+
+                initialPositions.clear();
+                initialRotations.clear();
+                initialScales.clear();
+
+                for (auto *node : m_selectedNodes) {
+                    initialPositions.push_back(node->getData().getPosition());
+                    initialRotations.push_back(node->getData().getRotation());
+                    initialScales.push_back(node->getData().getScale());
+                }
+            }
+
+            // Convert world matrix back to local space
+            glm::mat4 parentWorldInverse = glm::inverse(parentWorldMatrix);
+            glm::mat4 localMatrix = parentWorldInverse * worldMatrix;
+
             glm::vec3 translation, rotation, scale;
             ImGuizmo::DecomposeMatrixToComponents(
+                &localMatrix[0][0], &translation[0], &rotation[0], &scale[0]);
+
+            // Calculate deltas from primary object's initial state
+            glm::vec3 deltaPos = translation - primaryInitialPos;
+            glm::vec3 deltaRot = glm::radians(glm::vec3(rotation.x, rotation.y, rotation.z)) - primaryInitialRot;
+            glm::vec3 deltaScale = scale - primaryInitialScale;
+
+            // Apply transformations to all selected objects
+            for (size_t i = 0; i < m_selectedNodes.size(); ++i) {
+                if (currentGizmoOperation == ImGuizmo::TRANSLATE) {
+                    m_selectedNodes[i]->getData().setPosition(initialPositions[i] + deltaPos);
+                } else if (currentGizmoOperation == ImGuizmo::ROTATE) {
+                    m_selectedNodes[i]->getData().setRotation(initialRotations[i] + deltaRot);
+                } else if (currentGizmoOperation == ImGuizmo::SCALE) {
+                    // For scale, multiply rather than add for better results
+                    glm::vec3 scaleRatio = scale / primaryInitialScale;
+                    m_selectedNodes[i]->getData().setScale(initialScales[i] * scaleRatio);
+                }
+            }
+        }
+    } else {
+        isManipulating = false;
                 &model[0][0], &translation[0], &rotation[0], &scale[0]);
 
             selectedObj.setPosition(translation);
@@ -1129,11 +1271,10 @@ void App::render()
     // Camera Manager UI
     DrawCameraManagerUI(m_camera, *m_renderer);
 
-    for (const auto &obj : m_gameObjects) {
-        if (obj.hasTransformChanged()) {
-            m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
-        }
-    }
+    m_sceneGraph.traverseWithTransform([&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+        (void) depth;
+        m_renderer->updateTransform(obj.rendererId, worldTransform);
+    });
 
     // // Update camera matrices
     // m_renderer->setViewMatrix(m_camera.getViewMatrix());
@@ -1169,6 +1310,21 @@ void App::run()
     }
 }
 
+// Helper function to check if a node can be added to the current selection
+bool App::canAddToSelection(SceneGraph::Node *nodeToAdd)
+{
+    if (!nodeToAdd) {
+        return false;
+    }
+
+    // Check if the node has a parent-child relationship with any selected node
+    for (auto *selectedNode : m_selectedNodes) {
+        if (nodeToAdd->hasParentChildRelationship(selectedNode)) {
+            return false;
+        }
+    }
+
+    return true;
 // Map current interaction state to cursor shape (5+ states)
 void App::updateCursor()
 {
