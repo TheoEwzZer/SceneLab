@@ -149,8 +149,10 @@ void RasterizationRenderer::removeObject(int objectId)
 
 void RasterizationRenderer::beginFrame()
 {
-    glClearColor(0.4f, 0.2f, 0.2f, 1.0f);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, 1920, 1080);
 
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Set view and projection matrices once per frame
@@ -225,6 +227,8 @@ void RasterizationRenderer::drawAll()
 
 void RasterizationRenderer::endFrame()
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // <- essentiel
+    glViewport(0, 0, 1920, 1080);
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <stdlib.h>
 #include <stdio.h>
+#include <iostream>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -160,3 +161,137 @@ ARenderer::~ARenderer()
 }
 
 bool ARenderer::shouldWindowClose() { return glfwWindowShouldClose(m_window); }
+
+void ARenderer::renderAllViews(CameraManager &cameraManager)
+{
+    for (auto &[id, view] : m_cameraViews) {
+        if (auto *cam = cameraManager.getCamera(id)) {
+            renderCameraViews(*cam, view);
+        }
+    }
+    renderDockableViews(cameraManager);
+}
+
+void ARenderer::createCameraViews(const int id, int width, int height)
+{
+    if (!m_cameraViews.contains(id)) {
+        CameraView view;
+        view.size = { width, height };
+
+        // Create and bind framebuffer
+        glGenFramebuffers(1, &view.fbo);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, view.fbo);
+
+        // Create and attach color texture
+        glGenTextures(1, &view.colorTex);
+        glBindTexture(GL_TEXTURE_2D, view.colorTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+            GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, view.colorTex, 0);
+
+        // Create and attach depth-stencil buffer
+        glGenRenderbuffers(1, &view.depthRBO);
+        glBindRenderbuffer(GL_RENDERBUFFER, view.depthRBO);
+        glRenderbufferStorage(
+            GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+            GL_RENDERBUFFER, view.depthRBO);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)
+            != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Framebuffer is incomplete!" << std::endl;
+        }
+
+        m_cameraViews[id] = std::move(view);
+    }
+}
+
+void ARenderer::destroyCameraViews(const int id)
+{
+    if (const auto it = m_cameraViews.find(id); it != m_cameraViews.end()) {
+        const auto &view = it->second;
+        glDeleteFramebuffers(1, &view.fbo);
+        glDeleteTextures(1, &view.colorTex);
+        glDeleteRenderbuffers(1, &view.depthRBO);
+        m_cameraViews.erase(it);
+    }
+}
+
+void ARenderer::renderCameraViews(const Camera &cam, const CameraView &view)
+{
+    // Save current state
+    GLint previousFBO;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO);
+    GLint previousViewport[4];
+    glGetIntegerv(GL_VIEWPORT, previousViewport);
+
+    // Bind our framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, view.fbo);
+
+    // Set viewport to match the view size
+    glViewport(0, 0, view.size.x, view.size.y);
+
+    // Clear the framebuffer
+    glClearColor(0.4f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Update view and projection matrices
+    setViewMatrix(cam.getViewMatrix());
+    setProjectionMatrix(cam.getProjectionMatrix());
+
+    // Draw scene
+    drawAll();
+
+    // Check for errors
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        std::cout << "OpenGL error after drawing to FBO: " << err << std::endl;
+    }
+
+    // Restore previous state
+    glBindFramebuffer(GL_FRAMEBUFFER, previousFBO);
+    glViewport(previousViewport[0], previousViewport[1], previousViewport[2],
+        previousViewport[3]);
+}
+
+void ARenderer::renderDockableViews(CameraManager &cameraManager)
+{
+    for (auto &[id, view] : m_cameraViews) {
+        const std::string name = "Camera " + std::to_string(id);
+        ImGui::SetNextWindowSize(ImVec2(512, 512), ImGuiCond_FirstUseEver);
+        ImGui::Begin(name.c_str());
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        int newW = static_cast<int>(avail.x);
+        int newH = static_cast<int>(avail.y);
+        if (view.size.x != newW || view.size.y != newH) {
+            view.size = { newW, newH };
+
+            glBindFramebuffer(GL_FRAMEBUFFER, view.fbo);
+
+            glBindTexture(GL_TEXTURE_2D, view.colorTex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, avail.x, avail.y, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+            glBindRenderbuffer(GL_RENDERBUFFER, view.depthRBO);
+            glRenderbufferStorage(
+                GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, avail.x, avail.y);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            if (auto *cam = cameraManager.getCamera(id)) {
+                const float aspect = static_cast<float>(view.size.x)
+                    / static_cast<float>(view.size.y);
+                cam->setProjection(45.0f, aspect, 0.01f, 100.0f);
+            }
+        }
+        ImGui::Image((void *)(intptr_t)view.colorTex, avail, ImVec2(0, 1),
+            ImVec2(1, 0));
+
+        ImGui::End();
+    }
+}

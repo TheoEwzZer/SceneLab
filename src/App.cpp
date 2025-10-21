@@ -26,8 +26,10 @@
 App::App()
 {
     m_renderer = std::make_unique<RasterizationRenderer>();
-    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
-    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+    // const int camId = m_camera.createCamera();
+    // m_camera.setFocused(camId);
+    // m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    // m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
 
     m_image = std::make_unique<Image>(m_renderer, m_gameObjects, m_camera);
 }
@@ -717,11 +719,14 @@ void App::init()
                 = m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
             if (added && m_gameObjects.size() > 0
                 && m_gameObjects.size() != beforeCount) {
-                selectedObjectIndex = static_cast<int64_t>(m_gameObjects.size())
-                    - 1;
-                // Ensure renderer transform matches immediately so gizmo centers on the image
-                auto &obj = m_gameObjects[static_cast<size_t>(selectedObjectIndex)];
-                m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
+                selectedObjectIndex
+                    = static_cast<int64_t>(m_gameObjects.size()) - 1;
+                // Ensure renderer transform matches immediately so gizmo
+                // centers on the image
+                auto &obj
+                    = m_gameObjects[static_cast<size_t>(selectedObjectIndex)];
+                m_renderer->updateTransform(
+                    obj.rendererId, obj.getModelMatrix());
             }
         }
     });
@@ -742,6 +747,18 @@ void App::init()
     });
 
     m_renderer->init();
+    m_camera.createCamera();
+    m_camera.createCamera();
+
+    m_camera.setFocused(1);
+    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+    m_renderer->createCameraViews(1, 1920, 1080);
+
+    m_camera.setFocused(2);
+    m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
+    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
+    m_renderer->createCameraViews(2, 1920, 1080);
 }
 
 void App::update()
@@ -1013,23 +1030,27 @@ void App::render()
         }
     }
 
+    // // Update camera matrices
+    // m_renderer->setViewMatrix(m_camera.getViewMatrix());
+    // m_renderer->setProjectionMatrix(m_camera.getProjectionMatrix());
+
+    // m_renderer->drawAll();
+
+    // for (const auto &obj : m_gameObjects) {
+    //     if (m_showAllBoundingBoxes || obj.isBoundingBoxActive())
+    //     [[unlikely]] {
+    //         m_renderer->drawBoundingBox(
+    //             obj.rendererId, obj.getAABBCorner1(), obj.getAABBCorner2());
+    //     }
+    // }
+    // m_image->handleFrameExport(m_renderer->getWindow());
+
+    // // Update cursor state at end of frame UI decisions
+    // updateCursor();
+
+    m_renderer->renderAllViews(m_camera);
+
     // Update camera matrices
-    m_renderer->setViewMatrix(m_camera.getViewMatrix());
-    m_renderer->setProjectionMatrix(m_camera.getProjectionMatrix());
-
-    m_renderer->drawAll();
-
-    for (const auto &obj : m_gameObjects) {
-        if (m_showAllBoundingBoxes || obj.isBoundingBoxActive()) [[unlikely]] {
-            m_renderer->drawBoundingBox(
-                obj.rendererId, obj.getAABBCorner1(), obj.getAABBCorner2());
-        }
-    }
-    m_image->handleFrameExport(m_renderer->getWindow());
-
-    // Update cursor state at end of frame UI decisions
-    updateCursor();
-
     m_renderer->endFrame();
 }
 

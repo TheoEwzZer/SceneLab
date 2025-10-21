@@ -14,6 +14,7 @@
 
 #include "GameObject.hpp"
 #include "Camera.hpp"
+#include "CameraManager.hpp"
 #include "GeometryImguiWindow.hpp"
 #include "Vectoriel.hpp"
 #include "Image.hpp"
@@ -38,7 +39,7 @@ class App {
 
 private:
     std::vector<GameObject> m_gameObjects;
-    Camera m_camera;
+    CameraManager m_camera;
     GeometryImguiWindow m_GeometryImguiWindow;
 
     void init();
