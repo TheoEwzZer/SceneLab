@@ -303,23 +303,30 @@ void ARenderer::renderDockableViews(CameraManager &cameraManager)
         // Controls toolbar for this camera
         if (auto *cam = cameraManager.getCamera(id)) {
             ImGui::PushID(id);
-            const std::string tableId = std::string("cam_ctl_") + std::to_string(id);
-            if (ImGui::BeginTable(tableId.c_str(), 5, ImGuiTableFlags_SizingFixedFit)) {
+            const std::string tableId
+                = std::string("cam_ctl_") + std::to_string(id);
+            if (ImGui::BeginTable(
+                    tableId.c_str(), 5, ImGuiTableFlags_SizingFixedFit)) {
                 ImGui::TableNextColumn();
-                bool isPerspective = cam->getProjectionMode() == Camera::ProjectionMode::Perspective;
+                bool isPerspective = cam->getProjectionMode()
+                    == Camera::ProjectionMode::Perspective;
                 if (ImGui::Checkbox("Persp##mode", &isPerspective)) {
-                    cam->setProjectionMode(isPerspective ? Camera::ProjectionMode::Perspective : Camera::ProjectionMode::Orthographic);
+                    cam->setProjectionMode(isPerspective
+                            ? Camera::ProjectionMode::Perspective
+                            : Camera::ProjectionMode::Orthographic);
                 }
 
                 ImGui::TableNextColumn();
                 if (isPerspective) {
                     float fov = cam->getFov();
-                    if (ImGui::DragFloat("FOV##fov", &fov, 0.1f, 10.0f, 160.0f, "%.1f")) {
+                    if (ImGui::DragFloat(
+                            "FOV##fov", &fov, 0.1f, 10.0f, 160.0f, "%.1f")) {
                         cam->setFov(fov);
                     }
                 } else {
                     float orthoSize = cam->getOrthoSize();
-                    if (ImGui::DragFloat("Size##ortho", &orthoSize, 0.05f, 0.01f, 100.0f, "%.2f")) {
+                    if (ImGui::DragFloat("Size##ortho", &orthoSize, 0.05f,
+                            0.01f, 100.0f, "%.2f")) {
                         cam->setOrthoSize(orthoSize);
                     }
                 }
@@ -371,7 +378,8 @@ void ARenderer::renderDockableViews(CameraManager &cameraManager)
 
         // Auto focus this camera when user clicks on its image/window
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left)
-            || (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))) {
+            || (ImGui::IsWindowHovered()
+                && ImGui::IsMouseClicked(ImGuiMouseButton_Left))) {
             cameraManager.setFocused(id);
         }
 
