@@ -505,18 +505,15 @@ m_sceneGraph.setRoot(std::make_unique<SceneGraph::Node>());
     m_sceneGraph.getRoot()->getChild(0)->setData(GameObject());
     m_sceneGraph.getRoot()->getChild(0)->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
-    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
-        std::cout << std::string(depth * 2, ' ') << "Node at depth " << depth
-                  << std::endl;
-    });
-    
+
     m_selectedObjectNode = m_sceneGraph.getRoot();
 
     m_sceneGraph.getRoot()->getChild(0)->getData().setPosition({ 1.2f, 0.f, 0.0f });
     m_sceneGraph.getRoot()->getChild(0)->getData().setScale(glm::vec3 { 0.2f });
-    
-    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
-        m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
+
+    m_sceneGraph.traverseWithTransform([&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+        (void) depth;
+        m_renderer->updateTransform(obj.rendererId, worldTransform);
     });
 
     // Register key callbacks
@@ -728,10 +725,15 @@ void App::selectedTransformUI()
 
     auto view = m_camera.getViewMatrix();
     auto proj = m_camera.getProjectionMatrix();
-    auto model = m_selectedObjectNode->getData().getModelMatrix();
+
+    // Get world matrix for gizmo display
+    glm::mat4 worldMatrix = m_selectedObjectNode->getWorldMatrix();
+
+    // Get parent world matrix for converting back to local space
+    glm::mat4 parentWorldMatrix = m_selectedObjectNode->getParentWorldMatrix();
 
     static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::TRANSLATE);
-    static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
+    static ImGuizmo::MODE currentGizmoMode(ImGuizmo::LOCAL);
 
     ImGui::Begin("Transformation Type");
 
@@ -762,12 +764,16 @@ void App::selectedTransformUI()
     */
 
     if (ImGuizmo::Manipulate(&view[0][0], &proj[0][0], currentGizmoOperation,
-            currentGizmoMode, &model[0][0])) {
+            currentGizmoMode, &worldMatrix[0][0])) {
         // Only update if ImGuizmo is actually being used
         if (ImGuizmo::IsUsing()) {
+            // Convert world matrix back to local space
+            glm::mat4 parentWorldInverse = glm::inverse(parentWorldMatrix);
+            glm::mat4 localMatrix = parentWorldInverse * worldMatrix;
+
             glm::vec3 translation, rotation, scale;
             ImGuizmo::DecomposeMatrixToComponents(
-                &model[0][0], &translation[0], &rotation[0], &scale[0]);
+                &localMatrix[0][0], &translation[0], &rotation[0], &scale[0]);
 
             m_selectedObjectNode->getData().setPosition(translation);
             m_selectedObjectNode->getData().setRotation(
@@ -783,10 +789,9 @@ void App::render()
 
     selectedTransformUI();
 
-    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
-        if (obj.hasTransformChanged()) {
-            m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
-        }
+    m_sceneGraph.traverseWithTransform([&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+        (void) depth;
+        m_renderer->updateTransform(obj.rendererId, worldTransform);
     });
 
     // Update camera matrices

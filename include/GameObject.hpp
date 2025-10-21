@@ -4,7 +4,8 @@
 class GameObject {
 private:
     glm::vec3 m_position { 0.0f }, m_rotation { 0.0f }, m_scale { 1.0f };
-    mutable glm::mat4 m_modelMatrix { 1.0f };
+    mutable glm::mat4 m_localMatrix { 1.0f };
+    mutable glm::mat4 m_worldMatrix { 1.0f };
     mutable bool m_transformDirty = true;
 
 public:
@@ -22,5 +23,9 @@ public:
 
     bool hasTransformChanged() const { return m_transformDirty; }
 
-    const glm::mat4 &getModelMatrix() const;
+    const glm::mat4 &getLocalMatrix() const;
+    const glm::mat4 &getWorldMatrix(const glm::mat4 &parentMatrix = glm::mat4(1.0f)) const;
+
+    // Alias for backward compatibility
+    const glm::mat4 &getModelMatrix() const { return getLocalMatrix(); }
 };
