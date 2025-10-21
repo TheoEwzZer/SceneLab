@@ -52,6 +52,7 @@ private:
     void updateCursor();
     void resetAllCameraPoses();
     void renderCameraGizmo(int cameraId, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize, bool isHovered);
+    void drawBoundingBoxes();
 
     Vect::UIDrawer vectorial_ui;
 

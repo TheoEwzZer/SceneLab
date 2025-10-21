@@ -36,6 +36,10 @@ App::App()
     m_renderer->setCameraOverlayCallback([this](int id, const Camera& camera, ImVec2 imagePos, ImVec2 imageSize, bool isHovered) {
         this->renderCameraGizmo(id, camera, imagePos, imageSize, isHovered);
     });
+
+    m_renderer->setBoundingBoxDrawCallback([this]() {
+        this->drawBoundingBoxes();
+    });
 }
 
 App::~App() {}
@@ -1208,6 +1212,16 @@ void App::resetAllCameraPoses()
             cam->setPosition(glm::vec3(0.0f, 0.0f, 3.0f));
             cam->setRotation(0.0f, 0.0f, 0.0f);
             // Keep current projection parameters; aspect will be applied by views
+        }
+    }
+}
+
+void App::drawBoundingBoxes()
+{
+    for (const auto &obj : m_gameObjects) {
+        if (m_showAllBoundingBoxes || obj.isBoundingBoxActive()) {
+            m_renderer->drawBoundingBox(
+                obj.rendererId, obj.getAABBCorner1(), obj.getAABBCorner2());
         }
     }
 }

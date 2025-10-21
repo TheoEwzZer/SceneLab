@@ -59,7 +59,9 @@ public:
     void destroyCameraViews(int id);
     void renderAllViews(CameraManager& cameraManager);
     using CameraOverlayCallback = std::function<void(int, const Camera&, ImVec2 imagePos, ImVec2 imageSize, bool isHovered)>;
+    using BoundingBoxDrawCallback = std::function<void()>;
     void setCameraOverlayCallback(CameraOverlayCallback callback);
+    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback);
 
     // Abstract
     virtual bool shouldWindowClose();
@@ -86,6 +88,7 @@ protected:
 
     std::unordered_map<int, CameraView> m_cameraViews;
     CameraOverlayCallback m_cameraOverlayCallback;
+    BoundingBoxDrawCallback m_bboxDrawCallback;
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
 

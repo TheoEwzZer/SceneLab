@@ -169,6 +169,11 @@ void ARenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
     m_cameraOverlayCallback = std::move(callback);
 }
 
+void ARenderer::setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback)
+{
+    m_bboxDrawCallback = std::move(callback);
+}
+
 void ARenderer::renderAllViews(CameraManager &cameraManager)
 {
     for (auto &[id, view] : m_cameraViews) {
@@ -257,6 +262,11 @@ void ARenderer::renderCameraViews(const Camera &cam, const CameraView &view)
 
     // Draw scene
     drawAll();
+
+    // Draw bounding boxes if callback is set
+    if (m_bboxDrawCallback) {
+        m_bboxDrawCallback();
+    }
 
     // Check for errors
     GLenum err = glGetError();
