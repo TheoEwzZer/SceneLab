@@ -24,8 +24,8 @@
 #include <random>
 #include <chrono>
 
-Image::Image(std::unique_ptr<ARenderer> &renderer,
-    SceneGraph &sceneGraph, const CameraManager &cameraManager) :
+Image::Image(std::unique_ptr<ARenderer> &renderer, SceneGraph &sceneGraph,
+    const CameraManager &cameraManager) :
     m_renderer(renderer),
     m_sceneGraph(sceneGraph), m_cameraManager(cameraManager)
 {
