@@ -5,3 +5,4 @@
 -I./external/imgui
 -I./external/imgui/backends
 -I./external/stb_image/include
+-I./external/ImGuizmo
