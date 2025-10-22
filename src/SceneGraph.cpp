@@ -11,6 +11,24 @@ void SceneGraph::Node::addChild(std::unique_ptr<Node> child)
     children.push_back(std::move(child));
 }
 
+bool SceneGraph::Node::removeChild(Node *childToRemove)
+{
+    if (!childToRemove) {
+        return false;
+    }
+
+    auto it = std::find_if(children.begin(), children.end(),
+        [childToRemove](const std::unique_ptr<Node> &child) {
+            return child.get() == childToRemove;
+        });
+
+    if (it != children.end()) {
+        children.erase(it);
+        return true;
+    }
+    return false;
+}
+
 SceneGraph::Node *SceneGraph::Node::getParent() { return parent; }
 
 GameObject &SceneGraph::Node::getData() { return data; }

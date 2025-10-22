@@ -31,8 +31,10 @@ App::App()
 
     m_image = std::make_unique<Image>(m_renderer, m_sceneGraph, m_camera);
 
-    // Set callback for when Image creates a new object (drag-drop or sampled image)
-    m_image->setOnImageObjectCreatedCallback([this](SceneGraph::Node* newNode) {
+    // Set callback for when Image creates a new object (drag-drop or sampled
+    // image)
+    m_image->setOnImageObjectCreatedCallback([this](
+                                                 SceneGraph::Node *newNode) {
         if (newNode) {
             // Select the newly created object
             m_selectedNodes.clear();
@@ -734,6 +736,9 @@ void App::init()
     m_renderer->addKeyCallback(GLFW_KEY_LEFT_SHIFT, GLFW_RELEASE,
         [&]() { leftShiftPressed = false; });
 
+    m_renderer->addKeyCallback(
+        GLFW_KEY_DELETE, GLFW_PRESS, [&]() { deleteSelectedObjects(); });
+
     // Register mouse button callbacks
     m_renderer->addKeyCallback(
         GLFW_MOUSE_BUTTON_2, GLFW_PRESS, [&]() { firstMouse = true; });
@@ -764,7 +769,8 @@ void App::init()
     m_renderer->addDropCallback([&](const std::vector<std::string> &paths,
                                     double mouseX, double mouseY) {
         for (const auto &p : paths) {
-            // addImageObjectAtScreenPos will trigger the callback which handles selection
+            // addImageObjectAtScreenPos will trigger the callback which
+            // handles selection
             m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
         }
     });
@@ -791,13 +797,6 @@ void App::init()
     m_camera.setPosition({ 0.0f, 0.0f, 3.0f });
     m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
     m_renderer->createCameraViews(cam1, 640, 360);
-
-    int cam2 = m_camera.createCamera();
-    m_camera.setFocused(cam2);
-    m_camera.setPosition({ 3.0f, 3.0f, 3.0f });
-    m_camera.setProjection(45.0f, 1920.0f / 1080.0f, 0.1f, 100.0f);
-    m_camera.setRotation(-20.0f, -45.0f, 0.0f);
-    m_renderer->createCameraViews(cam2, 640, 360);
 }
 
 void App::update()
@@ -884,6 +883,12 @@ void App::selectedTransformUI()
     }
 
     ImGui::Begin("Transforms");
+
+    if (m_selectedNodes.empty()) {
+        ImGui::Text("No objects selected");
+        ImGui::End();
+        return;
+    }
 
     if (m_selectedNodes.size() == 1) {
         ImGui::Text("1 object selected");
@@ -1461,4 +1466,35 @@ bool App::canAddToSelection(SceneGraph::Node *nodeToAdd)
     }
 
     return true;
+}
+
+void App::deleteSelectedObjects()
+{
+    if (m_selectedNodes.empty()) {
+        return;
+    }
+
+    std::vector<std::pair<int, SceneGraph::Node *>> toDelete;
+    for (auto *node : m_selectedNodes) {
+        // Don't delete the root node
+        if (node && node->getParent() && node != m_sceneGraph.getRoot()) {
+            int rendererId = node->getData().rendererId;
+            SceneGraph::Node *parent = node->getParent();
+            toDelete.push_back({ rendererId, parent });
+        }
+    }
+
+    m_selectedNodes.clear();
+
+    for (const auto &[rendererId, parent] : toDelete) {
+        m_renderer->removeObject(rendererId);
+
+        for (int i = 0; i < parent->getChildCount(); ++i) {
+            auto *child = parent->getChild(i);
+            if (child && child->getData().rendererId == rendererId) {
+                parent->removeChild(child);
+                break;
+            }
+        }
+    }
 }

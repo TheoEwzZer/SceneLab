@@ -21,6 +21,7 @@ class SceneGraph {
         Node &operator=(const Node &) = delete;
 
         void addChild(std::unique_ptr<Node> child);
+        bool removeChild(Node *childToRemove);
         Node *getParent();
         GameObject &getData();
         int getChildCount() const { return static_cast<int>(children.size()); }
