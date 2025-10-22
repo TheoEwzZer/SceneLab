@@ -683,33 +683,28 @@ void App::init()
 
     m_sceneGraph.setRoot(std::make_unique<SceneGraph::Node>());
     m_sceneGraph.getRoot()->setData(GameObject());
-    m_sceneGraph.getRoot()->getData().rendererId = m_renderer->registerObject(
-        verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", false);
-    // Set AABB for root cube
-    m_sceneGraph.getRoot()->getData().setAABB(
-        glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f));
-    
-    std::unique_ptr<SceneGraph::Node> childNode
-        = std::make_unique<SceneGraph::Node>();
-    childNode->setData(GameObject());
-    childNode->getData().rendererId = m_renderer->registerObject(
-        verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
-    // Set AABB for child cube
-    childNode->getData().setAABB(
-        glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f));
-    
-    m_sceneGraph.getRoot()->addChild(std::move(childNode));
-    m_selectedNodes.push_back(m_sceneGraph.getRoot());
+    m_sceneGraph.getRoot()->getData().rendererId = -1; // No renderer
+    m_sceneGraph.getRoot()->getData().setName("Scene Root");
 
-    m_sceneGraph.getRoot()->getChild(0)->getData().setPosition(
-        { 1.2f, 0.f, 0.0f });
-    m_sceneGraph.getRoot()->getChild(0)->getData().setScale(
-        glm::vec3 { 0.2f });
+    std::unique_ptr<SceneGraph::Node> lightNode
+        = std::make_unique<SceneGraph::Node>();
+    lightNode->setData(GameObject());
+    lightNode->getData().rendererId = m_renderer->registerObject(
+        verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
+    lightNode->getData().setAABB(
+        glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f));
+    lightNode->getData().setName("Point Light");
+    lightNode->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
+    lightNode->getData().setScale(glm::vec3(0.2f));
+
+    m_sceneGraph.getRoot()->addChild(std::move(lightNode));
 
     m_sceneGraph.traverseWithTransform(
         [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
             (void)depth;
-            m_renderer->updateTransform(obj.rendererId, worldTransform);
+            if (obj.rendererId >= 0) {
+                m_renderer->updateTransform(obj.rendererId, worldTransform);
+            }
         });
 
     this->initGeometryWindow();
@@ -748,9 +743,8 @@ void App::init()
         GLFW_KEY_DELETE, GLFW_PRESS, [&]() { deleteSelectedObjects(); });
 
     // Register B key to toggle bounding boxes
-    m_renderer->addKeyCallback(GLFW_KEY_B, GLFW_PRESS, [&]() {
-        m_showAllBoundingBoxes = !m_showAllBoundingBoxes;
-    });
+    m_renderer->addKeyCallback(GLFW_KEY_B, GLFW_PRESS,
+        [&]() { m_showAllBoundingBoxes = !m_showAllBoundingBoxes; });
 
     // Register mouse button callbacks
     m_renderer->addKeyCallback(
@@ -1282,6 +1276,13 @@ void App::renderCameraGizmo(int cameraId, const Camera &camera,
             m_sceneGraph.traverse([&](SceneGraph::Node &node, int depth) {
                 (void)depth;
                 const GameObject &obj = node.getData();
+
+                // Skip objects without a valid renderer (like the invisible
+                // root)
+                if (obj.rendererId < 0) {
+                    return;
+                }
+
                 const glm::mat4 M = node.getWorldMatrix();
                 const glm::vec3 a = obj.getAABBCorner1();
                 const glm::vec3 b = obj.getAABBCorner2();
@@ -1420,7 +1421,9 @@ void App::render()
     m_sceneGraph.traverseWithTransform(
         [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
             (void)depth;
-            m_renderer->updateTransform(obj.rendererId, worldTransform);
+            if (obj.rendererId >= 0) {
+                m_renderer->updateTransform(obj.rendererId, worldTransform);
+            }
         });
 
     m_renderer->renderAllViews(m_camera);
@@ -1495,7 +1498,9 @@ void App::drawBoundingBoxes()
     m_sceneGraph.traverse([&](SceneGraph::Node &node, int depth) {
         (void)depth;
         const GameObject &obj = node.getData();
-        if (m_showAllBoundingBoxes || obj.isBoundingBoxActive()) {
+        // Only draw bounding boxes for objects that have a valid renderer
+        if (obj.rendererId >= 0
+            && (m_showAllBoundingBoxes || obj.isBoundingBoxActive())) {
             m_renderer->drawBoundingBox(
                 obj.rendererId, obj.getAABBCorner1(), obj.getAABBCorner2());
         }

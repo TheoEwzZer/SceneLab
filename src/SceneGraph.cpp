@@ -156,8 +156,17 @@ void SceneGraph::renderHierarchyUI(std::vector<Node *> &selectedNodes,
     ImGui::Begin("Scene Graph");
 
     traverse([&](GameObject &obj, int depth) {
-        std::string label = std::string(depth * 2, ' ') + "Object "
-            + std::to_string(obj.rendererId);
+        std::string label = std::string(depth * 2, ' ');
+        if (obj.rendererId < 0) {
+            label += std::string(obj.m_name);
+        } else {
+            std::string objName(obj.m_name);
+            if (!objName.empty() && objName != "Object") {
+                label += objName;
+            } else {
+                label += "Object " + std::to_string(obj.rendererId);
+            }
+        }
 
         // Check if this object is selected
         bool isSelected = false;
