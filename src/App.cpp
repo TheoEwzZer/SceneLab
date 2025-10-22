@@ -685,11 +685,19 @@ void App::init()
     m_sceneGraph.getRoot()->setData(GameObject());
     m_sceneGraph.getRoot()->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", false);
+    // Set AABB for root cube
+    m_sceneGraph.getRoot()->getData().setAABB(
+        glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f));
+    
     std::unique_ptr<SceneGraph::Node> childNode
         = std::make_unique<SceneGraph::Node>();
     childNode->setData(GameObject());
     childNode->getData().rendererId = m_renderer->registerObject(
         verticesAndNormal, {}, "../assets/wish-you-where-here.jpg", true);
+    // Set AABB for child cube
+    childNode->getData().setAABB(
+        glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f));
+    
     m_sceneGraph.getRoot()->addChild(std::move(childNode));
     m_selectedNodes.push_back(m_sceneGraph.getRoot());
 
@@ -738,6 +746,11 @@ void App::init()
 
     m_renderer->addKeyCallback(
         GLFW_KEY_DELETE, GLFW_PRESS, [&]() { deleteSelectedObjects(); });
+
+    // Register B key to toggle bounding boxes
+    m_renderer->addKeyCallback(GLFW_KEY_B, GLFW_PRESS, [&]() {
+        m_showAllBoundingBoxes = !m_showAllBoundingBoxes;
+    });
 
     // Register mouse button callbacks
     m_renderer->addKeyCallback(
@@ -1048,6 +1061,44 @@ void App::selectedTransformUI()
     if (ImGui::RadioButton(
             "Scale (S)", m_currentGizmoOperation == GizmoOp::Scale)) {
         m_currentGizmoOperation = GizmoOp::Scale;
+    }
+
+    ImGui::Separator();
+
+    // Bounding box controls (AABB - Axis-Aligned Bounding Boxes)
+    ImGui::Text("Bounding Boxes (AABB)");
+    if (ImGui::Checkbox("Show All BBoxes (B)", &m_showAllBoundingBoxes)) {
+        // Toggle applied automatically by checkbox
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "Display axis-aligned bounding boxes for all objects.\n"
+            "Press 'B' key to toggle quickly.\n"
+            "Individual boxes can be toggled per object below.");
+    }
+
+    if (m_selectedNodes.size() == 1) {
+        GameObject &obj = m_selectedNodes[0]->getData();
+        bool isBBoxActive = obj.isBoundingBoxActive();
+        if (ImGui::Checkbox("Show Selected Object's BBox", &isBBoxActive)) {
+            obj.setBoundingBoxActive(isBBoxActive);
+        }
+    } else if (m_selectedNodes.size() > 1) {
+        ImGui::Text("Toggle individual BBoxes:");
+
+        if (ImGui::Button("Enable All Selected")) {
+            for (auto *node : m_selectedNodes) {
+                node->getData().setBoundingBoxActive(true);
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Disable All Selected")) {
+            for (auto *node : m_selectedNodes) {
+                node->getData().setBoundingBoxActive(false);
+            }
+        }
     }
 
     ImGui::End();

@@ -128,6 +128,9 @@ bool Image::addImageObjectAtScreenPos(
         }
 
         newObject.setPosition(worldPos);
+        // Set AABB for the image quad (default 1.0x1.0 size)
+        newObject.setAABB(glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f));
+        
         std::unique_ptr<SceneGraph::Node> node = std::make_unique<SceneGraph::Node>();
         node->setData(newObject);
         m_sceneGraph.getRoot()->addChild(std::move(node));
