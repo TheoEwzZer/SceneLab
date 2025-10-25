@@ -1122,6 +1122,9 @@ void App::renderCameraGizmo(int cameraId, const Camera &camera,
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
 
+    // Set orthographic mode if camera is using orthographic projection
+    ImGuizmo::SetOrthographic(camera.getProjectionMode() == Camera::ProjectionMode::Orthographic);
+
     ImGuizmo::OPERATION operation;
     switch (m_currentGizmoOperation) {
         case GizmoOp::Translate:
