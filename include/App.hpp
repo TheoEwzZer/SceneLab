@@ -16,7 +16,9 @@
 #include "Camera.hpp"
 #include "SceneGraph.hpp"
 #include "CameraManager.hpp"
-#include "GeometryImguiWindow.hpp"
+#include "GeometryManager.hpp"
+#include "TransformManager.hpp"
+#include "CameraController.hpp"
 #include "Vectoriel.hpp"
 #include "Image.hpp"
 #include "renderer/interface/ARenderer.hpp"
@@ -24,46 +26,23 @@
 
 class App {
 
-    bool wPressed = false;
-    bool sPressed = false;
-    bool aPressed = false;
-    bool dPressed = false;
-    bool spacePressed = false;
-    bool leftCtrlPressed = false;
     bool leftShiftPressed = false;
-    glm::vec2 m_currentMousePos;
-    bool firstMouse = false;
-
-    glm::vec2 mouseDelta { 0.0f };
-    glm::vec2 prevMousePos { 0.0f };
-
-    // selected objects (multiple selection support)
-    std::vector<SceneGraph::Node *> m_selectedNodes;
-
-    bool m_showAllBoundingBoxes { false };
 
 private:
     SceneGraph m_sceneGraph;
-
     CameraManager m_camera;
-    GeometryImguiWindow m_GeometryImguiWindow;
+    
+    // Feature managers
+    std::unique_ptr<GeometryManager> m_geometryManager;
+    std::unique_ptr<TransformManager> m_transformManager;
+    std::unique_ptr<CameraController> m_cameraController;
 
     void init();
     void update();
     void render();
-
-    void initGeometryWindow();
-    void selectedTransformUI();
     void updateCursor();
-    void resetAllCameraPoses();
-    void renderCameraGizmo(int cameraId, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize, bool isHovered);
-    void drawBoundingBoxes();
-    void deleteSelectedObjects();
 
     Vect::UIDrawer vectorial_ui;
-
-    // Helper function for multi-selection validation
-    bool canAddToSelection(SceneGraph::Node *nodeToAdd);
 
 public:
     explicit App();
@@ -77,8 +56,4 @@ public:
 
     std::unique_ptr<ARenderer> m_renderer;
     std::unique_ptr<Image> m_image;
-
-    // Current gizmo operation (for cursor state)
-    enum class GizmoOp { Translate = 0, Rotate = 1, Scale = 2 };
-    GizmoOp m_currentGizmoOperation = GizmoOp::Translate;
 };
