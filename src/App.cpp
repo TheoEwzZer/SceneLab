@@ -15,21 +15,31 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <format>
 
 App::App()
 {
     m_renderer = std::make_unique<RasterizationRenderer>();
-    
+    m_rasterRenderer = static_cast<RasterizationRenderer *>(m_renderer.get());
+
     // Initialize managers
-    m_geometryManager = std::make_unique<GeometryManager>(m_sceneGraph, m_renderer);
-    m_transformManager = std::make_unique<TransformManager>(m_sceneGraph, m_renderer);
-    m_cameraController = std::make_unique<CameraController>(m_camera, m_renderer);
+    m_geometryManager
+        = std::make_unique<GeometryManager>(m_sceneGraph, m_renderer);
+    m_transformManager
+        = std::make_unique<TransformManager>(m_sceneGraph, m_renderer);
+    m_cameraController
+        = std::make_unique<CameraController>(m_camera, m_renderer);
+
+    if (m_rasterRenderer) {
+        m_textureManager = std::make_unique<TextureManager>(
+            m_sceneGraph, *m_transformManager, *m_rasterRenderer);
+    }
 
     m_image = std::make_unique<Image>(m_renderer, m_sceneGraph, m_camera);
 
-    // Set callback for when Image creates a new object (drag-drop or sampled image)
-    m_image->setOnImageObjectCreatedCallback([this](SceneGraph::Node *newNode) {
+    // Set callback for when Image creates a new object (drag-drop or sampled
+    // image)
+    m_image->setOnImageObjectCreatedCallback([this](
+                                                 SceneGraph::Node *newNode) {
         if (newNode) {
             // Select the newly created object
             m_transformManager->clearSelection();
@@ -42,15 +52,15 @@ App::App()
         }
     });
 
-    m_renderer->setCameraOverlayCallback([this](int id, const Camera &camera,
-                                             ImVec2 imagePos, ImVec2 imageSize,
-                                             bool isHovered) {
-        m_transformManager->renderCameraGizmo(id, camera, imagePos, imageSize, isHovered);
-    });
+    m_renderer->setCameraOverlayCallback(
+        [this](int id, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize,
+            bool isHovered) {
+            m_transformManager->renderCameraGizmo(
+                id, camera, imagePos, imageSize, isHovered);
+        });
 
-    m_renderer->setBoundingBoxDrawCallback([this]() { 
-        m_transformManager->drawBoundingBoxes(); 
-    });
+    m_renderer->setBoundingBoxDrawCallback(
+        [this]() { m_transformManager->drawBoundingBoxes(); });
 }
 
 App::~App() {}
@@ -68,7 +78,8 @@ void App::init()
     lightNode->setData(GameObject());
     lightNode->getData().rendererId = m_renderer->registerObject(
         lightGeometry.vertices, {}, "../assets/wish-you-where-here.jpg", true);
-    lightNode->getData().setAABB(lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
+    lightNode->getData().setAABB(
+        lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
     lightNode->getData().setName("Point Light");
     lightNode->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
     lightNode->getData().setScale(glm::vec3(0.2f));
@@ -113,7 +124,8 @@ void App::init()
     m_renderer->addDropCallback([this](const std::vector<std::string> &paths,
                                     double mouseX, double mouseY) {
         for (const auto &p : paths) {
-            // addImageObjectAtScreenPos will trigger the callback which handles selection
+            // addImageObjectAtScreenPos will trigger the callback which
+            // handles selection
             m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
         }
     });
@@ -147,7 +159,7 @@ GameObject &App::registerObject(GameObject &obj)
     m_sceneGraph.getRoot()->addChild(std::move(childNode));
 
     // Update selection to the newly added node
-    auto* newNode = m_sceneGraph.getRoot()->getChild(
+    auto *newNode = m_sceneGraph.getRoot()->getChild(
         m_sceneGraph.getRoot()->getChildCount() - 1);
     m_transformManager->clearSelection();
     m_transformManager->selectNode(newNode);
@@ -172,6 +184,10 @@ void App::render()
 
     // Geometry UI
     m_geometryManager->renderUI();
+
+    if (m_textureManager) {
+        m_textureManager->renderUI();
+    }
 
     // Camera Manager UI
     m_cameraController->renderCameraManagerUI();
@@ -232,4 +248,3 @@ void App::updateCursor()
     // Default: generic pointer
     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }
-

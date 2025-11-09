@@ -95,6 +95,18 @@ public:
             glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
     }
 
+    void setInt(std::string uniformName, int value)
+    {
+        glUniform1i(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
+    }
+
+    void setFloat(std::string uniformName, float value)
+    {
+        glUniform1f(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
+    }
+
 private:
     unsigned int m_shaderProgram;
 };
