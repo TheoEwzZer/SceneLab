@@ -499,7 +499,21 @@ void RasterizationRenderer::drawSkybox()
     m_skyboxShader.use();
     glm::mat4 view = glm::mat4(glm::mat3(m_viewMatrix));
     m_skyboxShader.setMat4("view", view);
-    m_skyboxShader.setMat4("projection", m_projMatrix);
+
+    const bool isOrthographicProjection
+        = std::abs(m_projMatrix[3][3] - 1.0f) < 1e-6f;
+    if (isOrthographicProjection) {
+        GLint vp[4] = { 0, 0, 1, 1 };
+        glGetIntegerv(GL_VIEWPORT, vp);
+        const float aspect
+            = (vp[3] != 0) ? static_cast<float>(vp[2]) / static_cast<float>(vp[3])
+                           : 1.0f;
+        const glm::mat4 skyboxProj
+            = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
+        m_skyboxShader.setMat4("projection", skyboxProj);
+    } else {
+        m_skyboxShader.setMat4("projection", m_projMatrix);
+    }
     glBindVertexArray(m_skyboxVAO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, resource->id);
