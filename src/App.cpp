@@ -78,9 +78,13 @@ void App::init()
     std::unique_ptr<SceneGraph::Node> lightNode
         = std::make_unique<SceneGraph::Node>();
     lightNode->setData(GameObject());
+
+    auto light = std::make_unique<Light>(
+            lightGeometry.vertices, std::vector<unsigned int> {});
+    // light->setPoint({1,1,1},1.0, 0.09, 0.032);
+
     lightNode->getData().rendererId = m_renderer->registerObject(
-        std::make_unique<Light>(
-            lightGeometry.vertices, std::vector<unsigned int> {}),
+        std::move(light),
         "../assets/wish-you-where-here.jpg");
     lightNode->getData().setAABB(
         lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
@@ -89,6 +93,26 @@ void App::init()
     lightNode->getData().setScale(glm::vec3(0.2f));
 
     m_sceneGraph.getRoot()->addChild(std::move(lightNode));
+
+
+     std::unique_ptr<SceneGraph::Node> lightNode2
+        = std::make_unique<SceneGraph::Node>();
+    lightNode2->setData(GameObject());
+
+    auto light2 = std::make_unique<Light>(
+            lightGeometry.vertices, std::vector<unsigned int> {});
+    light2->setPoint({1,1,1},1.0, 0.09, 0.032);
+
+    lightNode2->getData().rendererId = m_renderer->registerObject(
+        std::move(light2),
+        "../assets/wish-you-where-here.jpg");
+    lightNode2->getData().setAABB(
+        lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
+    lightNode2->getData().setName("Point Light 2");
+    lightNode2->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
+    lightNode2->getData().setScale(glm::vec3(0.2f));
+
+    m_sceneGraph.getRoot()->addChild(std::move(lightNode2));
 
     m_sceneGraph.traverseWithTransform(
         [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {

@@ -5,7 +5,9 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "ImGuizmo.h"
+#include "glm/fwd.hpp"
 #include "imgui.h"
+#include "objects/Material.hpp"
 #include "renderer/interface/ARenderer.hpp"
 
 #include <algorithm>
@@ -13,6 +15,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -21,6 +24,7 @@
 namespace {
 constexpr glm::vec3 DEFAULT_LIGHT_COLOR { 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 DEFAULT_LIGHT_POS { 2.0f, 0.0f, 0.0f };
+constexpr glm::vec3 DEFAULT_AMBIENT_LIGHT_COLOR {0.1f,0.1f, 0.1f};
 }
 
 RasterizationRenderer::RasterizationRenderer()
@@ -31,8 +35,9 @@ RasterizationRenderer::RasterizationRenderer()
     m_lightingShader.init(
         "../assets/shaders/shader.vert", "../assets/shaders/lighting.frag");
     m_lightingShader.use();
-    m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
-    m_lightingShader.setVec3("lightPos", DEFAULT_LIGHT_POS);
+    m_lightingShader.setVec3("ambientLightColor", DEFAULT_AMBIENT_LIGHT_COLOR);
+    // m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
+    // m_lightingShader.setVec3("lightPos", DEFAULT_LIGHT_POS);
     m_lightingShader.setInt("ourTexture", 0);
     m_lightingShader.setInt("filterMode", 0);
     m_lightingShader.setVec2("texelSize", glm::vec2(1.0f));
@@ -227,6 +232,22 @@ int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj,
     return id;
 }
 
+int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const Material &material)
+{
+    int id;
+
+    obj->setMaterial(material);
+    if (!m_freeSlots.empty()) {
+        id = m_freeSlots.back();
+        m_freeSlots.pop_back();
+        m_renderObjects[id] = std::move(obj);
+    } else {
+        id = m_renderObjects.size();
+        m_renderObjects.push_back(std::move(obj));
+    }
+    return id;
+}
+
 
 void RasterizationRenderer::updateTransform(
     const int objectId, const glm::mat4 &modelMatrix)
@@ -264,19 +285,34 @@ void RasterizationRenderer::beginFrame()
     m_lightingShader.use();
     m_lightingShader.setMat4("view", m_viewMatrix);
     m_lightingShader.setMat4("projection", m_projMatrix);
-    m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
+    m_lightingShader.setInt("lightingModel", m_lightingModel);
+
+    // m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
+
     m_lightingShader.setInt(
         "toneMappingMode", static_cast<int>(m_toneMappingMode));
     m_lightingShader.setFloat("toneExposure", m_toneMappingExposure);
 
+    std::vector<int> lightsNumbers(Light::Type::TypeEnd);
     for (const auto &obj : m_renderObjects) {
-        if (obj)
+        if (obj) {
+            const Light *l = dynamic_cast<Light*>(obj.get());
+            if (l != nullptr) {
+                l->setUniforms(lightsNumbers[l->getType()], m_lightingShader);
+                lightsNumbers[l->getType()] += 1;
+            }
+
             obj->useShader(m_lightingShader);
+        }
     }
 
-    m_pointLightShader.use();
-    m_pointLightShader.setMat4("view", m_viewMatrix);
-    m_pointLightShader.setMat4("projection", m_projMatrix);
+    m_lightingShader.setInt("NB_DIR_LIGHTS", lightsNumbers[Light::Type::Directional]);
+    m_lightingShader.setInt("NB_POINT_LIGHTS", lightsNumbers[Light::Type::Point]);
+    m_lightingShader.setInt("NB_SPOT_LIGHTS", lightsNumbers[Light::Type::Spot]);
+
+    // m_pointLightShader.use();
+    // m_pointLightShader.setMat4("view", m_viewMatrix);
+    // m_pointLightShader.setMat4("projection", m_projMatrix);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -347,7 +383,7 @@ void RasterizationRenderer::drawSkybox() const
     glDepthFunc(GL_LESS);
 }
 
-void RasterizationRenderer::drawAll()
+void RasterizationRenderer::drawAll(const Camera &cam)
 {
     drawSkybox();
 
@@ -358,6 +394,8 @@ void RasterizationRenderer::drawAll()
     m_lightingShader.use();
     m_lightingShader.setMat4("view", m_viewMatrix);
     m_lightingShader.setMat4("projection", m_projMatrix);
+
+    m_lightingShader.setVec3("viewPosition", cam.getPosition());
 
     m_pointLightShader.use();
     m_pointLightShader.setMat4("view", m_viewMatrix);

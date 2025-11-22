@@ -1,4 +1,47 @@
 #version 330 core
+
+#define MAX_POINT_LIGHTS 16
+#define MAX_SPOT_LIGHTS 16
+#define MAX_DIRECTIONAL_LIGHTS 16
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    vec3 emissive;
+    float shininess;
+};
+
+struct PointLight {
+    vec3 position;
+    vec3 color;
+    float ke;
+    float kl;
+    float kq;
+};
+
+struct DirectionalLight {
+    vec3 color;
+    vec3 direction;
+};
+
+struct SpotLight {
+    vec3 position;
+    vec3 color;
+    vec3 direction;
+    float ke;
+    float kl;
+    float kq;
+    float p;
+};
+
+struct LightOutput {
+    vec3 L;
+    vec3 V;
+    vec3 H;
+    vec3 color;
+};
+
 out vec4 FragColor;
 
 in vec2 TexCoord;
@@ -6,16 +49,25 @@ in vec3 Normal;
 in vec3 FragPos;
 
 uniform sampler2D ourTexture;
-uniform vec3 lightColor;
-uniform vec3 lightPos;
 uniform bool useTexture;
-uniform vec3 objectColor;
+
 uniform int filterMode;
 uniform vec2 texelSize;
 uniform int toneMappingMode;
 uniform float toneExposure;
-
 const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
+
+uniform int lightingModel;
+uniform vec3 viewPosition;
+uniform vec3 ambientLightColor;
+uniform Material objectMaterial;
+
+uniform int NB_DIR_LIGHTS;
+uniform int NB_POINT_LIGHTS;
+uniform int NB_SPOT_LIGHTS;
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform DirectionalLight directionalLights[MAX_POINT_LIGHTS];
+uniform SpotLight spotLights[MAX_POINT_LIGHTS];
 
 vec3 applyKernel(const float kernel[9])
 {
@@ -100,25 +152,80 @@ vec3 applyToneMapping(vec3 color)
     return mapped;
 }
 
+LightOutput prepareDirLight(DirectionalLight L)
+{
+    LightOutput Loutput;
+
+    Loutput.L = normalize(-L.direction);
+    Loutput.V = normalize(viewPosition - FragPos);
+    Loutput.color = L.color;
+    Loutput.H = normalize(Loutput.L + Loutput.V);
+    return Loutput;
+}
+
+LightOutput preparePointLight(PointLight L)
+{
+    LightOutput Loutput;
+
+    vec3 lightV = L.position - FragPos;
+    float dist = length(lightV);
+    float attenuation = 1.0 / (L.ke + L.kl * dist + L.kq * (dist * dist));
+
+    Loutput.L = normalize(lightV);
+    Loutput.V = normalize(viewPosition - FragPos);
+    Loutput.color = L.color * attenuation;
+    Loutput.H = normalize(Loutput.L + Loutput.V);
+
+    return Loutput;
+}
+
+vec3 modelLambert(vec3 N, LightOutput LOutput)
+{
+    float diffuse = max(dot(N, LOutput.L), 0.0);
+    return LOutput.color * diffuse;
+}
+
+vec3 calculateDirectLight(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
+{
+    vec3 lightReflectedColor = vec3(0.0);
+
+    if (lightingModel == 0) {
+        lightReflectedColor = modelLambert(N, LOutput);
+    }
+
+    if (lightingModel == 0) {
+        return lightReflectedColor * (objectMaterial.diffuse * diffuseTextureColor);
+    }
+
+    return vec3(0.0);
+}
+
 void main()
 {
-    float ambientStrength = 0.1;
+    vec3 norm = normalize(Normal);
 
     vec4 sampledColor
-        = useTexture ? texture(ourTexture, TexCoord) : vec4(objectColor, 1.0);
+        = useTexture ? texture(ourTexture, TexCoord) : vec4(1.0, 1.0, 1.0, 1.0);
+    vec3 diffuseTextureColor = applyFilter(sampledColor.rgb);
 
-    vec3 baseColor = applyFilter(sampledColor.rgb);
+    vec3 ambient = ambientLightColor * objectMaterial.ambient * diffuseTextureColor;
+    vec3 emissive = objectMaterial.emissive;
+    vec3 totalDirectLight = vec3(0.0);
 
-    vec3 ambient = ambientStrength * lightColor;
+    LightOutput LOutput;
+    for(int i = 0; i < NB_DIR_LIGHTS; i++) {
+        LOutput = prepareDirLight(directionalLights[i]);
+        totalDirectLight += calculateDirectLight(norm, LOutput, diffuseTextureColor);
+    }
 
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor;
+    for(int i = 0; i < NB_POINT_LIGHTS; i++) {
+        LOutput = preparePointLight(pointLights[i]);
+        totalDirectLight += calculateDirectLight(norm, LOutput, diffuseTextureColor);
+    }
 
-    vec3 shaded = (ambient + diffuse) * baseColor;
+    vec3 shaded = ambient + emissive + totalDirectLight;
+
     vec3 toneMapped = applyToneMapping(shaded);
-
     vec3 finalColor = (toneMappingMode == 0) ? shaded : toneMapped;
-    FragColor = vec4(finalColor, sampledColor.a);
+    FragColor = vec4(finalColor, 1.0);
 }

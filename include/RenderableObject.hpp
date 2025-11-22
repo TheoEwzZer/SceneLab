@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include "ShaderProgram.hpp"
+#include "objects/Material.hpp"
 #include "renderer/TextureLibrary.hpp"
 
 enum class FilterMode : int { None = 0, Grayscale, Sharpen, EdgeDetect, Blur };
@@ -26,7 +27,8 @@ protected:
     int m_textureHandle = -1;
     FilterMode filterMode = FilterMode::None;
 
-    glm::vec3 m_color = glm::vec3(1.0f);
+    // glm::vec3 m_color = glm::vec3(1.0f);
+    Material m_mat;
 
 public:
     RenderableObject() = default;
@@ -43,6 +45,10 @@ public:
             glDeleteBuffers(1, &EBO);
         }
     }
+
+    void setMaterial(const Material &mat) {m_mat = mat;};
+
+    Material &getMaterial() {return m_mat;};
 
     void setFilterMode(const FilterMode mode) { filterMode = mode; }
 
@@ -65,11 +71,14 @@ public:
 
     void setColor(const glm::vec3 &color)
     {
-        m_color = color;
+        // m_color = color;
+        m_mat = Material({0,0,0}, color, {0,0,0}, {0,0,0});
         m_useTexture = false;
     }
 
-    [[nodiscard]] glm::vec3 getColor() const { return m_color; }
+    // [[nodiscard]] glm::vec3 getColor() const { return m_color; }
+
+    glm::vec3 getColor() const { return m_mat.m_diffuseColor; }
 
     void assignTexture(const int textureHandle)
     {

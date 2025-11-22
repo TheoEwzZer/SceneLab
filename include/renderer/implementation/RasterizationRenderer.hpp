@@ -63,6 +63,7 @@ public:
         const std::string &texturePath) override;
     int registerObject(std::unique_ptr<RenderableObject> obj,
         const glm::vec3 &color) override;
+    int registerObject(std::unique_ptr<RenderableObject> obj, const Material &material) override;
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
@@ -83,7 +84,7 @@ public:
 
     // Rendering related
     void beginFrame() override;
-    void drawAll() override;
+    void drawAll(const Camera &cam) override;
     void endFrame() override;
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);

@@ -3,12 +3,16 @@
 //
 
 #include "../../include/objects/Light.hpp"
+#include <sstream>
+#include <stdexcept>
+#include <string>
 
 Light::Light(const std::vector<float> &vertices,
     const std::vector<unsigned int> &indices, const glm::vec3 &color)
 {
     init(vertices, indices);
-    m_color = color;
+    // m_color = color;
+    m_mat.m_diffuseColor = color;
 }
 
 Light::Light(const std::vector<float> &vertices,
@@ -58,9 +62,68 @@ void Light::init(const std::vector<float> &vertices,
     isActive = true;
 }
 
-void Light::useShader(ShaderProgram &shader) const
+void Light::useShader(ShaderProgram &shader) const {
+    (void) shader;
+}
+
+void Light::setDirectional(const glm::vec3 &color, const glm::vec3 &direction)
 {
-    shader.setVec3("lightPos", glm::vec3(modelMatrix[3]));
+    m_color = color;
+    m_direction = direction;
+    m_type = Directional;
+}
+
+void Light::setPoint(const glm::vec3 &color, float ke, float kl, float kq)
+{
+    m_color = color;
+    m_ke = ke;
+    m_kl = kl;
+    m_kq = kq;
+    m_type = Point;
+}
+
+void Light::setSpot(const glm::vec3 &color, const glm::vec3 &direction, float ke, float kl, float kq, float p)
+{
+    m_color = color;
+    m_direction = direction;
+    m_ke = ke;
+    m_kl = kl;
+    m_kq = kq;
+    m_p = p;
+    m_type = Spot;
+}
+
+void Light::setUniforms(int uniformID, const ShaderProgram &lightingShader) const
+{
+    std::string uniformName;
+
+    switch (m_type) {
+        case Directional:
+            uniformName = "directionalLights[" + std::to_string(uniformID) +  "].";
+            lightingShader.setVec3(uniformName + "direction", glm::vec3(m_direction));
+            lightingShader.setVec3(uniformName + "color", m_color);
+            break;
+        case Point:
+            uniformName = "pointLights[" + std::to_string(uniformID) +  "].";
+            lightingShader.setVec3(uniformName + "position", glm::vec3(modelMatrix[3]));
+            lightingShader.setVec3(uniformName + "color", m_color);
+            lightingShader.setFloat(uniformName + "ke", m_ke);
+            lightingShader.setFloat(uniformName + "kl", m_kl);
+            lightingShader.setFloat(uniformName + "kq", m_kq);
+            break;
+        case Spot:
+            uniformName = "spotLights[" + std::to_string(uniformID) +  "].";
+            lightingShader.setVec3(uniformName + "position", glm::vec3(modelMatrix[3]));
+            lightingShader.setVec3(uniformName + "color", m_color);
+            lightingShader.setVec3(uniformName + "direction", m_direction);
+            lightingShader.setFloat(uniformName + "ke", m_ke);
+            lightingShader.setFloat(uniformName + "kl", m_kl);
+            lightingShader.setFloat(uniformName + "kq", m_kq);
+            lightingShader.setFloat(uniformName + "p", m_p);
+            break;
+        default:
+            throw std::runtime_error("Light type not supported");
+    }
 }
 
 void Light::draw([[maybe_unused]] const ShaderProgram &vectorial,
@@ -72,6 +135,7 @@ void Light::draw([[maybe_unused]] const ShaderProgram &vectorial,
 
     lighting.use();
     lighting.setMat4("model", modelMatrix);
+    // Material::setShaderUniforms(lighting, m_mat);
 
     if (texture) {
         if (texture->target == TextureTarget::Texture2D) {

@@ -164,6 +164,11 @@ ARenderer::~ARenderer()
     exit(EXIT_SUCCESS);
 }
 
+void ARenderer::setLightingModel(LightingModel model)
+{
+    m_lightingModel = model;
+}
+
 bool ARenderer::shouldWindowClose() { return glfwWindowShouldClose(m_window); }
 
 void ARenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
@@ -264,7 +269,7 @@ void ARenderer::renderCameraViews(const Camera &cam, const CameraView &view)
     setProjectionMatrix(cam.getProjectionMatrix());
 
     // Draw scene
-    drawAll();
+    drawAll(cam);
 
     // Draw bounding boxes if callback is set
     if (m_bboxDrawCallback) {

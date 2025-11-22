@@ -22,7 +22,9 @@
 struct ImVec2;
 
 class ARenderer {
-public:
+    enum LightingModel {LAMBERT = 0, PHONG = 1, BLINN_PHONG = 2, GOURAUD = 3};
+
+    public:
     ARenderer();
     virtual ~ARenderer();
 
@@ -39,6 +41,8 @@ public:
     virtual int registerObject(
         std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
         = 0;
+    virtual int registerObject(std::unique_ptr<RenderableObject> obj, const Material &material) = 0;
+
     virtual void updateTransform(int objectId, const glm::mat4 &modelMatrix)
         = 0;
     virtual void removeObject(int objectId) = 0;
@@ -52,9 +56,11 @@ public:
     virtual void setProjectionMode(Camera::ProjectionMode mode) = 0;
 
     // Rendering Related
-    virtual void drawAll() = 0;
+    virtual void drawAll(const Camera &cam) = 0;
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;
+
+    void setLightingModel(LightingModel model);
 
     void createCameraViews(int id, int width = 512, int height = 512);
     void destroyCameraViews(int id);
@@ -93,6 +99,7 @@ protected:
     BoundingBoxDrawCallback m_bboxDrawCallback;
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
+    LightingModel m_lightingModel = LAMBERT;
 
     void renderCameraViews(const Camera &cam, const CameraView &view);
     void renderDockableViews(CameraManager &cameraManager);
