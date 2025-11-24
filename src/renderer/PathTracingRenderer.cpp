@@ -1,4 +1,4 @@
-#include "renderer/implementation/RasterizationRenderer.hpp"
+#include "renderer/implementation/PathTracingRenderer.hpp"
 #include "ShaderProgram.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -22,7 +22,7 @@ constexpr glm::vec3 DEFAULT_LIGHT_COLOR { 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 DEFAULT_LIGHT_POS { 2.0f, 0.0f, 0.0f };
 }
 
-RasterizationRenderer::RasterizationRenderer(Window &window)
+PathTracingRenderer::PathTracingRenderer(Window &window)
     : m_window(window)
 {
 
@@ -68,7 +68,7 @@ RasterizationRenderer::RasterizationRenderer(Window &window)
     m_textureLibrary.ensureDefaultCubemaps();
 }
 
-RasterizationRenderer::~RasterizationRenderer()
+PathTracingRenderer::~PathTracingRenderer()
 {
     if (m_skyboxVAO != 0) {
         glDeleteVertexArrays(1, &m_skyboxVAO);
@@ -78,7 +78,7 @@ RasterizationRenderer::~RasterizationRenderer()
     }
 }
 
-void RasterizationRenderer::initializeSkyboxGeometry()
+void PathTracingRenderer::initializeSkyboxGeometry()
 {
     // clang-format off
     constexpr float skyboxVertices[] = {
@@ -121,29 +121,29 @@ void RasterizationRenderer::initializeSkyboxGeometry()
 }
 
 const std::vector<TextureResource> &
-RasterizationRenderer::getTextureResources() const
+PathTracingRenderer::getTextureResources() const
 {
     return m_textureLibrary.getTextureResources();
 }
 
-const std::vector<int> &RasterizationRenderer::getCubemapHandles() const
+const std::vector<int> &PathTracingRenderer::getCubemapHandles() const
 {
     return m_textureLibrary.getCubemapHandles();
 }
 
-const TextureResource *RasterizationRenderer::getTextureResource(
+const TextureResource *PathTracingRenderer::getTextureResource(
     int handle) const
 {
     return m_textureLibrary.getTextureResource(handle);
 }
 
-int RasterizationRenderer::loadTexture2D(
+int PathTracingRenderer::loadTexture2D(
     const std::string &filepath, bool srgb)
 {
     return m_textureLibrary.loadTexture2D(filepath, srgb);
 }
 
-int RasterizationRenderer::createCheckerboardTexture(const std::string &name,
+int PathTracingRenderer::createCheckerboardTexture(const std::string &name,
     int width, int height, const glm::vec3 &colorA, const glm::vec3 &colorB,
     int checks, bool srgb)
 {
@@ -151,28 +151,28 @@ int RasterizationRenderer::createCheckerboardTexture(const std::string &name,
         name, width, height, colorA, colorB, checks, srgb);
 }
 
-int RasterizationRenderer::createNoiseTexture(
+int PathTracingRenderer::createNoiseTexture(
     const std::string &name, int width, int height, float frequency, bool srgb)
 {
     return m_textureLibrary.createNoiseTexture(
         name, width, height, frequency, srgb);
 }
 
-int RasterizationRenderer::createSolidColorTexture(const std::string &name,
+int PathTracingRenderer::createSolidColorTexture(const std::string &name,
     const glm::vec3 &color, int width, int height, bool srgb)
 {
     return m_textureLibrary.createSolidColorTexture(
         name, color, width, height, srgb);
 }
 
-int RasterizationRenderer::createColoredCubemap(const std::string &name,
+int PathTracingRenderer::createColoredCubemap(const std::string &name,
     const std::array<glm::vec3, 6> &faceColors, int edgeSize, bool srgb)
 {
     return m_textureLibrary.createColoredCubemap(
         name, faceColors, edgeSize, srgb);
 }
 
-int RasterizationRenderer::loadCubemapFromEquirectangular(
+int PathTracingRenderer::loadCubemapFromEquirectangular(
     const std::string &name, const std::string &equirectPath, int resolution,
     bool srgb)
 {
@@ -180,7 +180,7 @@ int RasterizationRenderer::loadCubemapFromEquirectangular(
         name, equirectPath, resolution, srgb);
 }
 
-int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj)
+int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj)
 {
     int id;
     if (!m_freeSlots.empty()) {
@@ -194,7 +194,7 @@ int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj)
     return id;
 }
 
-int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const std::string &texturePath)
+int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const std::string &texturePath)
 {
     int id;
     const int textureHandle = texturePath.empty()
@@ -212,7 +212,7 @@ int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj,
     return id;
 }
 
-int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
+int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
 {
     int id;
 
@@ -229,7 +229,7 @@ int RasterizationRenderer::registerObject(std::unique_ptr<RenderableObject> obj,
 }
 
 
-void RasterizationRenderer::updateTransform(
+void PathTracingRenderer::updateTransform(
     const int objectId, const glm::mat4 &modelMatrix)
 {
     if (objectId >= 0 && objectId < static_cast<int>(m_renderObjects.size())) {
@@ -237,7 +237,7 @@ void RasterizationRenderer::updateTransform(
     }
 }
 
-void RasterizationRenderer::removeObject(const int objectId)
+void PathTracingRenderer::removeObject(const int objectId)
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
         return;
@@ -250,7 +250,7 @@ void RasterizationRenderer::removeObject(const int objectId)
     m_freeSlots.push_back(objectId);
 }
 
-std::vector<std::unique_ptr<RenderableObject>> RasterizationRenderer::extractAllObjects()
+std::vector<std::unique_ptr<RenderableObject>> PathTracingRenderer::extractAllObjects()
 {
     std::vector<std::unique_ptr<RenderableObject>> objects;
     objects.reserve(m_renderObjects.size());
@@ -265,7 +265,7 @@ std::vector<std::unique_ptr<RenderableObject>> RasterizationRenderer::extractAll
     return objects;
 }
 
-void RasterizationRenderer::beginFrame()
+void PathTracingRenderer::beginFrame()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, 1920, 1080);
@@ -325,7 +325,7 @@ void RasterizationRenderer::beginFrame()
     ImGuizmo::SetRect(0, 0, 1920, 1080);
 }
 
-void RasterizationRenderer::drawSkybox() const
+void PathTracingRenderer::drawSkybox() const
 {
     const int activeHandle = m_textureLibrary.getActiveCubemap();
     if (activeHandle < 0) {
@@ -363,7 +363,7 @@ void RasterizationRenderer::drawSkybox() const
     glDepthFunc(GL_LESS);
 }
 
-void RasterizationRenderer::drawAll()
+void PathTracingRenderer::drawAll()
 {
     drawSkybox();
 
@@ -390,7 +390,7 @@ void RasterizationRenderer::drawAll()
         }
 }
 
-void RasterizationRenderer::endFrame()
+void PathTracingRenderer::endFrame()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, 1920, 1080);
@@ -401,7 +401,7 @@ void RasterizationRenderer::endFrame()
     m_window.pollEvents();
 }
 
-void RasterizationRenderer::createBoundingBoxBuffers()
+void PathTracingRenderer::createBoundingBoxBuffers()
 {
     glGenVertexArrays(1, &m_bboxVAO);
     glGenBuffers(1, &m_bboxVBO);
@@ -419,7 +419,7 @@ void RasterizationRenderer::createBoundingBoxBuffers()
     glBindVertexArray(0);
 }
 
-void RasterizationRenderer::drawBoundingBox(
+void PathTracingRenderer::drawBoundingBox(
     const int objectId, const glm::vec3 &corner1, const glm::vec3 &corner2)
 {
     if (objectId == -1 || objectId >= static_cast<int>(m_renderObjects.size()))
@@ -473,7 +473,7 @@ void RasterizationRenderer::drawBoundingBox(
     glBindVertexArray(0);
 }
 
-void RasterizationRenderer::assignTextureToObject(
+void PathTracingRenderer::assignTextureToObject(
     const int objectId, const int textureHandle) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
@@ -485,7 +485,7 @@ void RasterizationRenderer::assignTextureToObject(
     }
 }
 
-void RasterizationRenderer::assignTextureToObject(
+void PathTracingRenderer::assignTextureToObject(
     const int objectId, const std::string &texturePath)
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
@@ -499,7 +499,7 @@ void RasterizationRenderer::assignTextureToObject(
     }
 }
 
-int RasterizationRenderer::getObjectTextureHandle(const int objectId) const
+int PathTracingRenderer::getObjectTextureHandle(const int objectId) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return -1;
@@ -510,7 +510,7 @@ int RasterizationRenderer::getObjectTextureHandle(const int objectId) const
     return -1;
 }
 
-void RasterizationRenderer::setObjectFilter(
+void PathTracingRenderer::setObjectFilter(
     const int objectId, const FilterMode mode) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
@@ -521,7 +521,7 @@ void RasterizationRenderer::setObjectFilter(
     }
 }
 
-FilterMode RasterizationRenderer::getObjectFilter(const int objectId) const
+FilterMode PathTracingRenderer::getObjectFilter(const int objectId) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return FilterMode::None;
@@ -532,7 +532,7 @@ FilterMode RasterizationRenderer::getObjectFilter(const int objectId) const
     return FilterMode::None;
 }
 
-void RasterizationRenderer::setObjectUseTexture(
+void PathTracingRenderer::setObjectUseTexture(
     const int objectId, const bool useTexture) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
@@ -543,7 +543,7 @@ void RasterizationRenderer::setObjectUseTexture(
     }
 }
 
-bool RasterizationRenderer::getObjectUseTexture(const int objectId) const
+bool PathTracingRenderer::getObjectUseTexture(const int objectId) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return false;
@@ -554,40 +554,40 @@ bool RasterizationRenderer::getObjectUseTexture(const int objectId) const
     return false;
 }
 
-void RasterizationRenderer::setToneMappingMode(const ToneMappingMode mode)
+void PathTracingRenderer::setToneMappingMode(const ToneMappingMode mode)
 {
     m_toneMappingMode = mode;
 }
 
-void RasterizationRenderer::setToneMappingExposure(const float exposure)
+void PathTracingRenderer::setToneMappingExposure(const float exposure)
 {
     m_toneMappingExposure = std::clamp(exposure, 0.01f, 20.0f);
 }
 
-void RasterizationRenderer::setActiveCubemap(int cubemapHandle)
+void PathTracingRenderer::setActiveCubemap(int cubemapHandle)
 {
     m_textureLibrary.setActiveCubemap(cubemapHandle);
 }
 
 // Window-related methods
-bool RasterizationRenderer::shouldWindowClose()
+bool PathTracingRenderer::shouldWindowClose()
 {
     return m_window.shouldClose();
 }
 
-void RasterizationRenderer::addKeyCallback(
+void PathTracingRenderer::addKeyCallback(
     int key, int action, std::function<void()> callback)
 {
     m_window.addKeyCallback(key, action, callback);
 }
 
-void RasterizationRenderer::addCursorCallback(
+void PathTracingRenderer::addCursorCallback(
     std::function<void(double, double)> callback)
 {
     m_window.addCursorCallback(callback);
 }
 
-void RasterizationRenderer::addDropCallback(
+void PathTracingRenderer::addDropCallback(
     std::function<void(const std::vector<std::string> &paths,
         double mouseX, double mouseY)>
         callback)
@@ -595,23 +595,23 @@ void RasterizationRenderer::addDropCallback(
     m_window.addDropCallback(callback);
 }
 
-GLFWwindow *RasterizationRenderer::getWindow() const
+GLFWwindow *PathTracingRenderer::getWindow() const
 {
     return m_window.getGLFWWindow();
 }
 
 // Camera view management methods
-void RasterizationRenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
+void PathTracingRenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
 {
     m_cameraOverlayCallback = std::move(callback);
 }
 
-void RasterizationRenderer::setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback)
+void PathTracingRenderer::setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback)
 {
     m_bboxDrawCallback = std::move(callback);
 }
 
-void RasterizationRenderer::renderAllViews(CameraManager &cameraManager)
+void PathTracingRenderer::renderAllViews(CameraManager &cameraManager)
 {
     for (auto &[id, view] : m_cameraViews) {
         if (auto *cam = cameraManager.getCamera(id)) {
@@ -626,7 +626,7 @@ void RasterizationRenderer::renderAllViews(CameraManager &cameraManager)
     }
 }
 
-void RasterizationRenderer::createCameraViews(const int id, int width, int height)
+void PathTracingRenderer::createCameraViews(const int id, int width, int height)
 {
     if (!m_cameraViews.contains(id)) {
         CameraView view;
@@ -664,7 +664,7 @@ void RasterizationRenderer::createCameraViews(const int id, int width, int heigh
     }
 }
 
-void RasterizationRenderer::destroyCameraViews(const int id)
+void PathTracingRenderer::destroyCameraViews(const int id)
 {
     if (const auto it = m_cameraViews.find(id); it != m_cameraViews.end()) {
         const auto &view = it->second;
@@ -675,7 +675,7 @@ void RasterizationRenderer::destroyCameraViews(const int id)
     }
 }
 
-void RasterizationRenderer::renderCameraViews(const Camera &cam, const CameraView &view)
+void PathTracingRenderer::renderCameraViews(const Camera &cam, const CameraView &view)
 {
     // Save current state
     GLint previousFBO;
@@ -718,7 +718,7 @@ void RasterizationRenderer::renderCameraViews(const Camera &cam, const CameraVie
         previousViewport[3]);
 }
 
-void RasterizationRenderer::renderDockableViews(CameraManager &cameraManager)
+void PathTracingRenderer::renderDockableViews(CameraManager &cameraManager)
 {
     for (auto &[id, view] : m_cameraViews) {
         const std::string name = "Camera " + std::to_string(id);

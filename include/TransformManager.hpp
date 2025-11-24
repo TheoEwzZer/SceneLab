@@ -2,7 +2,7 @@
 
 #include "GameObject.hpp"
 #include "SceneGraph.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 #include "Camera.hpp"
 #include <vector>
 #include <memory>
@@ -17,7 +17,7 @@ enum class GizmoOp { Translate, Rotate, Scale };
 class TransformManager {
 public:
     TransformManager(
-        SceneGraph &sceneGraph, std::unique_ptr<ARenderer> &renderer);
+        SceneGraph &sceneGraph, std::unique_ptr<IRenderer> &renderer);
 
     // Selection management
     void clearSelection();
@@ -60,7 +60,7 @@ public:
 
 private:
     SceneGraph &m_sceneGraph;
-    std::unique_ptr<ARenderer> &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
     std::vector<SceneGraph::Node *> m_selectedNodes;
     GizmoOp m_currentGizmoOperation = GizmoOp::Translate;
     bool m_showAllBoundingBoxes = false;

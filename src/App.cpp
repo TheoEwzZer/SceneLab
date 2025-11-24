@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "renderer/implementation/PathTracingRenderer.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
 
 #include "Camera.hpp"
@@ -19,9 +20,10 @@
 #include "objects/Light.hpp"
 
 App::App()
+    : m_window(1920, 1080, "SceneLab")
 {
-    m_renderer = std::make_unique<RasterizationRenderer>();
-    m_rasterRenderer = static_cast<RasterizationRenderer *>(m_renderer.get());
+    m_window.initImGui();
+    m_renderer = std::make_unique<RasterizationRenderer>(m_window);
 
     // Initialize managers
     m_geometryManager
@@ -31,9 +33,10 @@ App::App()
     m_cameraController
         = std::make_unique<CameraController>(m_camera, m_renderer);
 
-    if (m_rasterRenderer) {
+    if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
         m_textureManager = std::make_unique<TextureManager>(
-            m_sceneGraph, *m_transformManager, *m_rasterRenderer);
+            m_sceneGraph, *m_transformManager, dynamic_cast<RasterizationRenderer &>(
+                                    *m_renderer));
     }
 
     m_image = std::make_unique<Image>(m_renderer, m_sceneGraph, m_camera);
@@ -110,7 +113,68 @@ void App::init()
     // Register camera controller input callbacks
     m_cameraController->registerInputCallbacks();
 
-    // Register left shift key for multi-selection
+    // Reguster change renderer callback on the r key
+    m_renderer->addKeyCallback(GLFW_KEY_R, GLFW_PRESS, [this]() {
+        // Extract all objects from the old renderer before destroying it
+        auto objects = m_renderer->extractAllObjects();
+
+        // Create new renderer
+        if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
+            m_renderer = std::make_unique<PathTracingRenderer>(m_window);
+            std::cout << "Switching to Pathtracing" << std::endl;
+        } else {
+            m_renderer = std::make_unique<RasterizationRenderer>(m_window);
+            std::cout << "Switching to Rasterization" << std::endl;
+        }
+
+        // Re-register all objects with the new renderer
+        // Update rendererId in all GameObjects by using old rendererId as index into objects vector
+        m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+            (void)depth;
+            if (obj.rendererId >= 0 && obj.rendererId < static_cast<int>(objects.size())) {
+                auto &renderObj = objects[obj.rendererId];
+                if (renderObj) {
+                    obj.rendererId = m_renderer->registerObject(std::move(renderObj));
+                } else {
+                    obj.rendererId = -1;
+                }
+            }
+        });
+
+        // Update transforms for all re-registered objects
+        m_sceneGraph.traverseWithTransform(
+            [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+                (void)depth;
+                if (obj.rendererId >= 0) {
+                    m_renderer->updateTransform(obj.rendererId, worldTransform);
+                }
+            });
+
+        // Recreate TextureManager with the new renderer
+        if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
+            m_textureManager = std::make_unique<TextureManager>(
+                m_sceneGraph, *m_transformManager,
+                dynamic_cast<RasterizationRenderer &>(*m_renderer));
+        } else {
+            m_textureManager.reset();
+        }
+
+        // Re-register renderer callbacks
+        m_renderer->setCameraOverlayCallback(
+            [this](int id, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize,
+                bool isHovered) {
+                m_transformManager->renderCameraGizmo(
+                    id, camera, imagePos, imageSize, isHovered);
+            });
+
+        m_renderer->setBoundingBoxDrawCallback(
+            [this]() { m_transformManager->drawBoundingBoxes(); });
+
+        // Recreate camera views for all existing cameras
+        for (int camId : m_camera.getCameraIds()) {
+            m_renderer->createCameraViews(camId, 640, 360);
+        }
+    });    // Register left shift key for multi-selection
     m_renderer->addKeyCallback(
         GLFW_KEY_LEFT_SHIFT, GLFW_PRESS, [&]() { leftShiftPressed = true; });
     m_renderer->addKeyCallback(GLFW_KEY_LEFT_SHIFT, GLFW_RELEASE,
@@ -133,8 +197,6 @@ void App::init()
             m_image->addImageObjectAtScreenPos(p, mouseX, mouseY);
         }
     });
-
-    m_renderer->init();
     // Create two default cameras to showcase multi-view
     int cam1 = m_camera.createCamera();
     m_camera.setFocused(cam1);

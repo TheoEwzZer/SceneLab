@@ -8,7 +8,7 @@
 #include <cmath>
 
 TransformManager::TransformManager(
-    SceneGraph &sceneGraph, std::unique_ptr<ARenderer> &renderer) :
+    SceneGraph &sceneGraph, std::unique_ptr<IRenderer> &renderer) :
     m_sceneGraph(sceneGraph),
     m_renderer(renderer)
 {

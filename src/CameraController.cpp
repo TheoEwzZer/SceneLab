@@ -5,7 +5,7 @@
 #include <cmath>
 
 CameraController::CameraController(
-    CameraManager &cameraManager, std::unique_ptr<ARenderer> &renderer) :
+    CameraManager &cameraManager, std::unique_ptr<IRenderer> &renderer) :
     m_cameraManager(cameraManager),
     m_renderer(renderer)
 {

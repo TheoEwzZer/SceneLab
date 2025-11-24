@@ -21,15 +21,13 @@
 
 struct ImVec2;
 
-class ARenderer {
+// Interface for renderers
+class IRenderer {
 public:
-    ARenderer();
-    virtual ~ARenderer();
+    virtual ~IRenderer() = default;
 
-    ARenderer(const ARenderer &) = delete;
-    ARenderer &operator=(const ARenderer &) = delete;
-
-    void init();
+    IRenderer(const IRenderer &) = delete;
+    IRenderer &operator=(const IRenderer &) = delete;
 
     // Object Related
     virtual int registerObject(std::unique_ptr<RenderableObject> obj) = 0;
@@ -45,6 +43,7 @@ public:
     virtual void drawBoundingBox(
         int objectId, const glm::vec3 &corner1, const glm::vec3 &corner2)
         = 0;
+    virtual std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() = 0;
 
     // Camera Related
     virtual void setViewMatrix(const glm::mat4 &view) = 0;
@@ -56,27 +55,31 @@ public:
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;
 
-    void createCameraViews(int id, int width = 512, int height = 512);
-    void destroyCameraViews(int id);
-    void renderAllViews(CameraManager &cameraManager);
+    // Window Related
+    virtual bool shouldWindowClose() = 0;
+    virtual void addKeyCallback(int key, int action, std::function<void()> callback) = 0;
+    virtual void addCursorCallback(std::function<void(double, double)> callback) = 0;
+    virtual void addDropCallback(
+        std::function<void(const std::vector<std::string> &paths,
+            double mouseX, double mouseY)>
+            callback) = 0;
+    virtual GLFWwindow *getWindow() const = 0;
+
+    // Camera View Management
+    virtual void createCameraViews(int id, int width = 512, int height = 512) = 0;
+    virtual void destroyCameraViews(int id) = 0;
+    virtual void renderAllViews(CameraManager &cameraManager) = 0;
+
     using CameraOverlayCallback = std::function<void(int, const Camera &,
         ImVec2 imagePos, ImVec2 imageSize, bool isHovered)>;
     using BoundingBoxDrawCallback = std::function<void()>;
-    void setCameraOverlayCallback(CameraOverlayCallback callback);
-    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback);
 
-    // Abstract
-    virtual bool shouldWindowClose();
-    void addKeyCallback(int key, int action, std::function<void()> callback);
-    void addCursorCallback(std::function<void(double, double)> callback);
-    void addDropCallback(
-        std::function<void(const std::vector<std::string> &paths,
-            double mouseX, double mouseY)>
-            callback);
-
-    GLFWwindow *getWindow() const { return m_window; }
+    virtual void setCameraOverlayCallback(CameraOverlayCallback callback) = 0;
+    virtual void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) = 0;
 
 protected:
+    IRenderer() = default;
+
     struct CameraView {
         unsigned int fbo = 0;
         unsigned int colorTex = 0;
@@ -87,16 +90,4 @@ protected:
         ImVec2 lastSize = ImVec2(512.0f, 512.0f);
         bool hasState = false;
     };
-
-    std::unordered_map<int, CameraView> m_cameraViews;
-    CameraOverlayCallback m_cameraOverlayCallback;
-    BoundingBoxDrawCallback m_bboxDrawCallback;
-    bool m_lockCameraWindows = false;
-    int m_lockedCameraId = -1;
-
-    void renderCameraViews(const Camera &cam, const CameraView &view);
-    void renderDockableViews(CameraManager &cameraManager);
-    GLFWwindow *m_window;
-
-private:
 };

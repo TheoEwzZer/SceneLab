@@ -11,7 +11,7 @@
 #include "GameObject.hpp"
 #include "CameraManager.hpp"
 
-class ARenderer;
+class IRenderer;
 struct GLFWwindow;
 
 class Image {
@@ -29,7 +29,7 @@ public:
     };
 
 private:
-    std::unique_ptr<ARenderer> &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
 
     SceneGraph &m_sceneGraph;
 
@@ -53,7 +53,7 @@ private:
     void captureAndWriteCurrentFrame(GLFWwindow *window);
 
 public:
-    Image(std::unique_ptr<ARenderer> &renderer, SceneGraph &sceneGraph,
+    Image(std::unique_ptr<IRenderer> &renderer, SceneGraph &sceneGraph,
         const CameraManager &cameraManager);
 
     ~Image() = default;

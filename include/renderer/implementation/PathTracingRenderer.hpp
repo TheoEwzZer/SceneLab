@@ -1,9 +1,11 @@
+
 #pragma once
 
 #include "../interface/IRenderer.hpp"
 #include "renderer/Window.hpp"
 #include "ShaderProgram.hpp"
 #include "renderer/TextureLibrary.hpp"
+#include "renderer/implementation/RasterizationRenderer.hpp"
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,9 +15,8 @@
 
 #include <memory>
 
-enum class ToneMappingMode : int { Off = 0, Reinhard, ACES };
 
-class RasterizationRenderer : public IRenderer {
+class PathTracingRenderer : public IRenderer {
 private:
     Window &m_window;
 
@@ -63,11 +64,11 @@ public:
     static constexpr std::array<const char *, 3> TONEMAP_LABELS { "Off",
         "Reinhard", "ACES" };
 
-    explicit RasterizationRenderer(Window &window);
-    virtual ~RasterizationRenderer() override;
+    explicit PathTracingRenderer(Window &window);
+    virtual ~PathTracingRenderer() override;
 
-    RasterizationRenderer(const RasterizationRenderer &) = delete;
-    RasterizationRenderer &operator=(const RasterizationRenderer &) = delete;
+    PathTracingRenderer(const PathTracingRenderer &) = delete;
+    PathTracingRenderer &operator=(const PathTracingRenderer &) = delete;
 
     // Object Related
     int registerObject(std::unique_ptr<RenderableObject> obj) override;

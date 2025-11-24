@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CameraManager.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 #include <memory>
 #include <glm/glm.hpp>
 
 class CameraController {
 public:
     CameraController(
-        CameraManager &cameraManager, std::unique_ptr<ARenderer> &renderer);
+        CameraManager &cameraManager, std::unique_ptr<IRenderer> &renderer);
 
     // Register input callbacks
     void registerInputCallbacks();
@@ -27,7 +27,7 @@ public:
 
 private:
     CameraManager &m_cameraManager;
-    std::unique_ptr<ARenderer> &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
 
     // Input states
     bool wPressed = false;
