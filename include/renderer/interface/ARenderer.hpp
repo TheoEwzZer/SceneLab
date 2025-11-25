@@ -22,9 +22,10 @@
 struct ImVec2;
 
 class ARenderer {
+    public:
     enum LightingModel {LAMBERT = 0, PHONG = 1, BLINN_PHONG = 2, GOURAUD = 3};
 
-    public:
+
     ARenderer();
     virtual ~ARenderer();
 

@@ -3,6 +3,8 @@
 //
 
 #include "../../include/objects/Light.hpp"
+#include "glm/fwd.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -97,10 +99,13 @@ void Light::setUniforms(int uniformID, const ShaderProgram &lightingShader) cons
 {
     std::string uniformName;
 
+    glm::vec4 worldDir = modelMatrix * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);;
+    glm::vec3 dir = glm::normalize(glm::vec3(worldDir));
+
     switch (m_type) {
         case Directional:
             uniformName = "directionalLights[" + std::to_string(uniformID) +  "].";
-            lightingShader.setVec3(uniformName + "direction", glm::vec3(m_direction));
+            lightingShader.setVec3(uniformName + "direction", dir);
             lightingShader.setVec3(uniformName + "color", m_color);
             break;
         case Point:
@@ -115,7 +120,7 @@ void Light::setUniforms(int uniformID, const ShaderProgram &lightingShader) cons
             uniformName = "spotLights[" + std::to_string(uniformID) +  "].";
             lightingShader.setVec3(uniformName + "position", glm::vec3(modelMatrix[3]));
             lightingShader.setVec3(uniformName + "color", m_color);
-            lightingShader.setVec3(uniformName + "direction", m_direction);
+            lightingShader.setVec3(uniformName + "direction", dir);
             lightingShader.setFloat(uniformName + "ke", m_ke);
             lightingShader.setFloat(uniformName + "kl", m_kl);
             lightingShader.setFloat(uniformName + "kq", m_kq);

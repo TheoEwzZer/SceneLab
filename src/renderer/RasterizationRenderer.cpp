@@ -397,9 +397,9 @@ void RasterizationRenderer::drawAll(const Camera &cam)
 
     m_lightingShader.setVec3("viewPosition", cam.getPosition());
 
-    m_pointLightShader.use();
-    m_pointLightShader.setMat4("view", m_viewMatrix);
-    m_pointLightShader.setMat4("projection", m_projMatrix);
+    // m_pointLightShader.use();
+    // m_pointLightShader.setMat4("view", m_viewMatrix);
+    // m_pointLightShader.setMat4("projection", m_projMatrix);
 
     for (const auto &obj : m_renderObjects)
         if (obj && obj->getStatus()) {

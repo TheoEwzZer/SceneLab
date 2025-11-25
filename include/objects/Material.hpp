@@ -31,7 +31,7 @@ struct Material {
         shader.setVec3("objectMaterial.diffuse", {0.5,0.5,0.5});
         shader.setVec3("objectMaterial.specular", {0.5,0.5,0.5});
         shader.setVec3("objectMaterial.emissive", {0.0,0.0,0.0});
-        shader.setFloat("objectMaterial.shininess", 0.5);
+        shader.setFloat("objectMaterial.shininess", 10.5);
     }
 };
 

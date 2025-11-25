@@ -37,7 +37,6 @@ struct SpotLight {
 
 struct LightOutput {
     vec3 L;
-    vec3 V;
     vec3 H;
     vec3 color;
 };
@@ -66,8 +65,8 @@ uniform int NB_DIR_LIGHTS;
 uniform int NB_POINT_LIGHTS;
 uniform int NB_SPOT_LIGHTS;
 uniform PointLight pointLights[MAX_POINT_LIGHTS];
-uniform DirectionalLight directionalLights[MAX_POINT_LIGHTS];
-uniform SpotLight spotLights[MAX_POINT_LIGHTS];
+uniform DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHTS];
+uniform SpotLight spotLights[MAX_SPOT_LIGHTS];
 
 vec3 applyKernel(const float kernel[9])
 {
@@ -152,14 +151,16 @@ vec3 applyToneMapping(vec3 color)
     return mapped;
 }
 
+vec3 getViewVector() {
+    return normalize(viewPosition - FragPos);
+}
+
 LightOutput prepareDirLight(DirectionalLight L)
 {
     LightOutput Loutput;
-
     Loutput.L = normalize(-L.direction);
-    Loutput.V = normalize(viewPosition - FragPos);
     Loutput.color = L.color;
-    Loutput.H = normalize(Loutput.L + Loutput.V);
+    Loutput.H = normalize(Loutput.L + getViewVector());
     return Loutput;
 }
 
@@ -172,29 +173,73 @@ LightOutput preparePointLight(PointLight L)
     float attenuation = 1.0 / (L.ke + L.kl * dist + L.kq * (dist * dist));
 
     Loutput.L = normalize(lightV);
-    Loutput.V = normalize(viewPosition - FragPos);
     Loutput.color = L.color * attenuation;
-    Loutput.H = normalize(Loutput.L + Loutput.V);
+    Loutput.H = normalize(Loutput.L + getViewVector());
 
     return Loutput;
 }
 
-vec3 modelLambert(vec3 N, LightOutput LOutput)
+LightOutput prepareSpotLight(SpotLight L)
 {
-    float diffuse = max(dot(N, LOutput.L), 0.0);
-    return LOutput.color * diffuse;
+    LightOutput Loutput;
+
+    vec3 lightV = L.position - FragPos;
+    float dist = length(lightV);
+    float attenuation = 1.0 / (L.ke + L.kl * dist + L.kq * (dist * dist));
+
+    Loutput.L = normalize(lightV);
+    vec3 spotDirection = normalize(L.direction);
+
+    float intensity = attenuation * pow(max(dot(-Loutput.L, spotDirection), 0.0), L.p);
+    Loutput.color = L.color * intensity;
+    Loutput.H = normalize(Loutput.L + getViewVector());
+    return Loutput;
 }
 
-vec3 calculateDirectLight(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
+vec3 modelLambert(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
 {
-    vec3 lightReflectedColor = vec3(0.0);
+    float diffuseFactor = max(dot(N, LOutput.L), 0.0);
+    vec3 diffuse = objectMaterial.diffuse * diffuseTextureColor;
+    return LOutput.color * diffuseFactor * diffuse;
+}
 
-    if (lightingModel == 0) {
-        lightReflectedColor = modelLambert(N, LOutput);
+vec3 modelPhong(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
+{
+    float diffuseFactor = max(dot(N, LOutput.L), 0.0);
+    vec3 diffuse = LOutput.color * diffuseFactor * objectMaterial.diffuse * diffuseTextureColor;
+
+    vec3 specular = vec3(0,0,0);
+    if (diffuseFactor > 0.0) {
+        vec3 R = normalize(2.0 * dot(N, LOutput.L) * N - LOutput.L);
+        float lspecular = pow(max(dot(getViewVector(), R), 0.0), objectMaterial.shininess);
+        specular = LOutput.color * lspecular * objectMaterial.specular;
     }
 
-    if (lightingModel == 0) {
-        return lightReflectedColor * (objectMaterial.diffuse * diffuseTextureColor);
+    return diffuse + specular;
+}
+
+vec3 modelBlinnPhong(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
+{
+    float diffuseFactor = max(dot(N, LOutput.L), 0.0);
+    vec3 diffuse = LOutput.color * diffuseFactor * objectMaterial.diffuse * diffuseTextureColor;
+
+    vec3 specular = vec3(0,0,0);
+    if (diffuseFactor > 0.0) {
+        float lspecular = pow(max(dot(N, LOutput.H), 0.0), objectMaterial.shininess);
+        specular = LOutput.color * lspecular * objectMaterial.specular;
+    }
+
+    return diffuse + specular;
+}
+
+vec3 calculateLight(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
+{
+    if (lightingModel == 0) {           // Lambert
+        return modelLambert(N, LOutput, diffuseTextureColor);
+    } else if (lightingModel == 1) {    // Phong
+        return modelPhong(N, LOutput, diffuseTextureColor);
+    } else if (lightingModel == 2) {    // Blinn-Phong
+        return modelBlinnPhong(N, LOutput, diffuseTextureColor);
     }
 
     return vec3(0.0);
@@ -202,28 +247,28 @@ vec3 calculateDirectLight(vec3 N, LightOutput LOutput, vec3 diffuseTextureColor)
 
 void main()
 {
-    vec3 norm = normalize(Normal);
-
     vec4 sampledColor
         = useTexture ? texture(ourTexture, TexCoord) : vec4(1.0, 1.0, 1.0, 1.0);
     vec3 diffuseTextureColor = applyFilter(sampledColor.rgb);
 
+    LightOutput LOutput;
+    vec3 totalLight = vec3(0.0);
     vec3 ambient = ambientLightColor * objectMaterial.ambient * diffuseTextureColor;
     vec3 emissive = objectMaterial.emissive;
-    vec3 totalDirectLight = vec3(0.0);
-
-    LightOutput LOutput;
     for(int i = 0; i < NB_DIR_LIGHTS; i++) {
         LOutput = prepareDirLight(directionalLights[i]);
-        totalDirectLight += calculateDirectLight(norm, LOutput, diffuseTextureColor);
+        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
     }
-
     for(int i = 0; i < NB_POINT_LIGHTS; i++) {
         LOutput = preparePointLight(pointLights[i]);
-        totalDirectLight += calculateDirectLight(norm, LOutput, diffuseTextureColor);
+        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
+    }
+    for(int i = 0; i < NB_SPOT_LIGHTS; i++) {
+        LOutput = prepareSpotLight(spotLights[i]);
+        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
     }
 
-    vec3 shaded = ambient + emissive + totalDirectLight;
+    vec3 shaded = ambient + emissive + totalLight;
 
     vec3 toneMapped = applyToneMapping(shaded);
     vec3 finalColor = (toneMappingMode == 0) ? shaded : toneMapped;
