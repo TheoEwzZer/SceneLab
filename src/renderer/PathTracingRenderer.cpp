@@ -5,6 +5,7 @@
 
 #include "ImGuizmo.h"
 #include "imgui.h"
+#include "objects/Object3D.hpp"
 #include "renderer/interface/IRenderer.hpp"
 
 #include <algorithm>
@@ -15,12 +16,8 @@
 #include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/geometric.hpp>
 #include "objects/Light.hpp"
-
-namespace {
-constexpr glm::vec3 DEFAULT_LIGHT_COLOR { 1.0f, 1.0f, 1.0f };
-constexpr glm::vec3 DEFAULT_LIGHT_POS { 2.0f, 0.0f, 0.0f };
-}
 
 PathTracingRenderer::PathTracingRenderer(Window &window)
     : m_window(window)
@@ -29,212 +26,78 @@ PathTracingRenderer::PathTracingRenderer(Window &window)
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
-    m_lightingShader.init(
-        "../assets/shaders/shader.vert", "../assets/shaders/lighting.frag");
-    m_lightingShader.use();
-    m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
-    m_lightingShader.setVec3("lightPos", DEFAULT_LIGHT_POS);
-    m_lightingShader.setInt("ourTexture", 0);
-    m_lightingShader.setInt("filterMode", 0);
-    m_lightingShader.setVec2("texelSize", glm::vec2(1.0f));
-    m_lightingShader.setInt(
-        "toneMappingMode", static_cast<int>(m_toneMappingMode));
-    m_lightingShader.setFloat("toneExposure", m_toneMappingExposure);
-
-    m_pointLightShader.init(
-        "../assets/shaders/shader.vert", "../assets/shaders/pointLight.frag");
-    m_vectorialShader.init(
-        "../assets/shaders/shader_vect.vert", "../assets/shaders/vect.frag");
-    m_vectorialShader.use();
-    m_vectorialShader.setInt("ourTexture", 0);
-    m_vectorialShader.setBool("useTexture", false);
-    m_vectorialShader.setInt("filterMode", 0);
-    m_vectorialShader.setVec2("texelSize", glm::vec2(0.0f));
-    m_bboxShader.init(
-        "../assets/shaders/shader.vert", "../assets/shaders/bbox.frag");
-    m_skyboxShader.init(
-        "../assets/shaders/skybox.vert", "../assets/shaders/skybox.frag");
-    m_skyboxShader.use();
-    m_skyboxShader.setInt("skybox", 0);
+    m_pathTracingShader.init(
+        "../assets/shaders/shader.vert",
+        "../assets/shaders/pathtracing.frag");
+    m_pathTracingShader.use();
+    glm::mat4 identity = glm::mat4(1.0f);
+    m_pathTracingShader.setMat4("model", identity);
+    m_pathTracingShader.setMat4("view", identity);
+    m_pathTracingShader.setMat4("projection", identity);
+    m_pathTracingShader.setVec3("viewPos", glm::vec3(0.0f, 0.0f, 4.0f));
 
     // Initialize view and projection matrices
     m_viewMatrix = glm::mat4(1.0f);
     m_viewMatrix = glm::translate(m_viewMatrix, glm::vec3(0.0f, 0.0f, -4.0f));
-    m_projMatrix = glm::perspective(
-        glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
+    // default to orthographic projection
+    m_projMatrix = glm::ortho(
+        -1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 100.0f);
+    float quadVertices[] = {
+        // positions        // texCoords
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // top left
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // bottom left
+         1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
 
-    initializeSkyboxGeometry();
-    m_textureLibrary.ensureDefaultTextures();
-    m_textureLibrary.ensureDefaultCubemaps();
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // top left
+         1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+         1.0f,  1.0f, 0.0f, 1.0f, 1.0f  // top right
+    };
+    // register in VBO, VAO etc.
+    glGenVertexArrays(1, &m_quadVAO);
+    glGenBuffers(1, &m_quadVBO);
+    glBindVertexArray(m_quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+    initAccumulationBuffers();
 }
 
 PathTracingRenderer::~PathTracingRenderer()
 {
-    if (m_skyboxVAO != 0) {
-        glDeleteVertexArrays(1, &m_skyboxVAO);
-    }
-    if (m_skyboxVBO != 0) {
-        glDeleteBuffers(1, &m_skyboxVBO);
-    }
-}
-
-void PathTracingRenderer::initializeSkyboxGeometry()
-{
-    // clang-format off
-    constexpr float skyboxVertices[] = {
-        // Face arrière (z = -1)
-        -1.0f, -1.0f, -1.0f,   1.0f, -1.0f, -1.0f,   1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,  -1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f,
-
-        // Face front (z = 1)
-        -1.0f, -1.0f,  1.0f,   1.0f,  1.0f,  1.0f,   1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,  -1.0f, -1.0f,  1.0f,  -1.0f,  1.0f,  1.0f,
-
-        // Face left (x = -1)
-        -1.0f,  1.0f,  1.0f,  -1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,  -1.0f, -1.0f,  1.0f,  -1.0f,  1.0f,  1.0f,
-
-        // Face right (x = 1)
-         1.0f,  1.0f,  1.0f,   1.0f, -1.0f, -1.0f,   1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,   1.0f,  1.0f,  1.0f,   1.0f, -1.0f,  1.0f,
-
-        // Face bottom (y = -1)
-        -1.0f, -1.0f, -1.0f,   1.0f, -1.0f, -1.0f,   1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,  -1.0f, -1.0f,  1.0f,  -1.0f, -1.0f, -1.0f,
-
-        // Face top (y = 1)
-        -1.0f,  1.0f, -1.0f,   1.0f,  1.0f,  1.0f,   1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,  -1.0f,  1.0f, -1.0f,  -1.0f,  1.0f,  1.0f
-    };
-
-
-    glGenVertexArrays(1, &m_skyboxVAO);
-    glGenBuffers(1, &m_skyboxVBO);
-    glBindVertexArray(m_skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), skyboxVertices,
-        GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    glBindVertexArray(0);
-}
-
-const std::vector<TextureResource> &
-PathTracingRenderer::getTextureResources() const
-{
-    return m_textureLibrary.getTextureResources();
-}
-
-const std::vector<int> &PathTracingRenderer::getCubemapHandles() const
-{
-    return m_textureLibrary.getCubemapHandles();
-}
-
-const TextureResource *PathTracingRenderer::getTextureResource(
-    int handle) const
-{
-    return m_textureLibrary.getTextureResource(handle);
-}
-
-int PathTracingRenderer::loadTexture2D(
-    const std::string &filepath, bool srgb)
-{
-    return m_textureLibrary.loadTexture2D(filepath, srgb);
-}
-
-int PathTracingRenderer::createCheckerboardTexture(const std::string &name,
-    int width, int height, const glm::vec3 &colorA, const glm::vec3 &colorB,
-    int checks, bool srgb)
-{
-    return m_textureLibrary.createCheckerboardTexture(
-        name, width, height, colorA, colorB, checks, srgb);
-}
-
-int PathTracingRenderer::createNoiseTexture(
-    const std::string &name, int width, int height, float frequency, bool srgb)
-{
-    return m_textureLibrary.createNoiseTexture(
-        name, width, height, frequency, srgb);
-}
-
-int PathTracingRenderer::createSolidColorTexture(const std::string &name,
-    const glm::vec3 &color, int width, int height, bool srgb)
-{
-    return m_textureLibrary.createSolidColorTexture(
-        name, color, width, height, srgb);
-}
-
-int PathTracingRenderer::createColoredCubemap(const std::string &name,
-    const std::array<glm::vec3, 6> &faceColors, int edgeSize, bool srgb)
-{
-    return m_textureLibrary.createColoredCubemap(
-        name, faceColors, edgeSize, srgb);
-}
-
-int PathTracingRenderer::loadCubemapFromEquirectangular(
-    const std::string &name, const std::string &equirectPath, int resolution,
-    bool srgb)
-{
-    return m_textureLibrary.loadCubemapFromEquirectangular(
-        name, equirectPath, resolution, srgb);
+    cleanupAccumulationBuffers();
 }
 
 int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj)
 {
-    int id;
-    if (!m_freeSlots.empty()) {
-        id = m_freeSlots.back();
-        m_freeSlots.pop_back();
-        m_renderObjects[id] = std::move(obj);
-    } else {
-        id = m_renderObjects.size();
-        m_renderObjects.push_back(std::move(obj));
-    }
-    return id;
+    (void) obj;
+    return 0;
 }
 
 int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const std::string &texturePath)
 {
-    int id;
-    const int textureHandle = texturePath.empty()
-        ? -1
-        : m_textureLibrary.loadTexture2D(texturePath, true);
-    obj->assignTexture(textureHandle);
-    if (!m_freeSlots.empty()) {
-        id = m_freeSlots.back();
-        m_freeSlots.pop_back();
-        m_renderObjects[id] = std::move(obj);
-    } else {
-        id = m_renderObjects.size();
-        m_renderObjects.push_back(std::move(obj));
-    }
-    return id;
+    (void) texturePath;
+    (void) obj;
+    return 0;
 }
 
 int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
 {
-    int id;
-
-    obj->setColor(color);
-    if (!m_freeSlots.empty()) {
-        id = m_freeSlots.back();
-        m_freeSlots.pop_back();
-        m_renderObjects[id] = std::move(obj);
-    } else {
-        id = m_renderObjects.size();
-        m_renderObjects.push_back(std::move(obj));
-    }
-    return id;
+    (void) color;
+    (void) obj;
+    return 0;
 }
 
 
 void PathTracingRenderer::updateTransform(
     const int objectId, const glm::mat4 &modelMatrix)
 {
-    if (objectId >= 0 && objectId < static_cast<int>(m_renderObjects.size())) {
-        m_renderObjects[objectId]->setModelMatrix(modelMatrix);
-    }
+    (void) objectId;
+    (void) modelMatrix;
 }
 
 void PathTracingRenderer::removeObject(const int objectId)
@@ -253,15 +116,6 @@ void PathTracingRenderer::removeObject(const int objectId)
 std::vector<std::unique_ptr<RenderableObject>> PathTracingRenderer::extractAllObjects()
 {
     std::vector<std::unique_ptr<RenderableObject>> objects;
-    objects.reserve(m_renderObjects.size());
-
-    for (auto &obj : m_renderObjects) {
-        objects.push_back(std::move(obj));
-    }
-
-    m_renderObjects.clear();
-    m_freeSlots.clear();
-
     return objects;
 }
 
@@ -273,26 +127,7 @@ void PathTracingRenderer::beginFrame()
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_vectorialShader.use();
-    m_vectorialShader.setMat4("view", m_viewMatrix);
-    m_vectorialShader.setMat4("projection", m_projMatrix);
-
-    m_lightingShader.use();
-    m_lightingShader.setMat4("view", m_viewMatrix);
-    m_lightingShader.setMat4("projection", m_projMatrix);
-    m_lightingShader.setVec3("lightColor", DEFAULT_LIGHT_COLOR);
-    m_lightingShader.setInt(
-        "toneMappingMode", static_cast<int>(m_toneMappingMode));
-    m_lightingShader.setFloat("toneExposure", m_toneMappingExposure);
-
-    for (const auto &obj : m_renderObjects) {
-        if (obj)
-            obj->useShader(m_lightingShader);
-    }
-
-    m_pointLightShader.use();
-    m_pointLightShader.setMat4("view", m_viewMatrix);
-    m_pointLightShader.setMat4("projection", m_projMatrix);
+    m_pathTracingShader.use();
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -325,73 +160,14 @@ void PathTracingRenderer::beginFrame()
     ImGuizmo::SetRect(0, 0, 1920, 1080);
 }
 
-void PathTracingRenderer::drawSkybox() const
+void PathTracingRenderer::drawAll(Camera cam)
 {
-    const int activeHandle = m_textureLibrary.getActiveCubemap();
-    if (activeHandle < 0) {
-        return;
-    }
-    const TextureResource *resource = getTextureResource(activeHandle);
-    if (!resource || resource->target != TextureTarget::Cubemap) {
-        return;
-    }
-
-    glDepthFunc(GL_LEQUAL);
-    glDepthMask(GL_FALSE);
-    m_skyboxShader.use();
-    const auto  view = glm::mat4(glm::mat3(m_viewMatrix));
-    m_skyboxShader.setMat4("view", view);
-
-    if (m_projectionMode == Camera::ProjectionMode::Orthographic) {
-        GLint vp[4] = { 0, 0, 1, 1 };
-        glGetIntegerv(GL_VIEWPORT, vp);
-        const float aspect
-            = (vp[3] != 0) ? static_cast<float>(vp[2]) / static_cast<float>(vp[3])
-                           : 1.0f;
-        const glm::mat4 skyboxProj
-            = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
-        m_skyboxShader.setMat4("projection", skyboxProj);
-    } else {
-        m_skyboxShader.setMat4("projection", m_projMatrix);
-    }
-    glBindVertexArray(m_skyboxVAO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, resource->id);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LESS);
-}
-
-void PathTracingRenderer::drawAll()
-{
-    drawSkybox();
-
-    m_vectorialShader.use();
-    m_vectorialShader.setMat4("view", m_viewMatrix);
-    m_vectorialShader.setMat4("projection", m_projMatrix);
-
-    m_lightingShader.use();
-    m_lightingShader.setMat4("view", m_viewMatrix);
-    m_lightingShader.setMat4("projection", m_projMatrix);
-
-    m_pointLightShader.use();
-    m_pointLightShader.setMat4("view", m_viewMatrix);
-    m_pointLightShader.setMat4("projection", m_projMatrix);
-
-    for (const auto &obj : m_renderObjects)
-        if (obj && obj->getStatus()) {
-            obj->draw(m_vectorialShader, m_pointLightShader, m_lightingShader, m_textureLibrary);
-
-            if (const GLenum error = glGetError(); error != GL_NO_ERROR) {
-                std::cerr << "[WARN] OpenGL error after drawing object "
-                          << ": " << error << '\n';
-            }
-        }
 }
 
 void PathTracingRenderer::endFrame()
 {
+    m_iFrame++;
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, 1920, 1080);
     ImGui::Render();
@@ -399,174 +175,6 @@ void PathTracingRenderer::endFrame()
 
     m_window.swapBuffers();
     m_window.pollEvents();
-}
-
-void PathTracingRenderer::createBoundingBoxBuffers()
-{
-    glGenVertexArrays(1, &m_bboxVAO);
-    glGenBuffers(1, &m_bboxVBO);
-
-    glBindVertexArray(m_bboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_bboxVBO);
-
-    glBufferData(
-        GL_ARRAY_BUFFER, 24 * 3 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(
-        0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
-}
-
-void PathTracingRenderer::drawBoundingBox(
-    const int objectId, const glm::vec3 &corner1, const glm::vec3 &corner2)
-{
-    if (objectId == -1 || objectId >= static_cast<int>(m_renderObjects.size()))
-        [[unlikely]] {
-        return;
-    }
-
-    const RenderableObject &obj = *m_renderObjects[objectId];
-
-    if (!obj.getStatus()) [[unlikely]] {
-        return;
-    }
-    if (m_bboxVAO == 0) [[unlikely]] {
-        createBoundingBoxBuffers();
-    }
-
-    const glm::vec3 min = glm::min(corner1, corner2);
-    const glm::vec3 max = glm::max(corner1, corner2);
-
-    // clang-format off
-    const float bboxVertices[24 * 3] = {
-        min.x, min.y, min.z,  max.x, min.y, min.z,
-        max.x, min.y, min.z,  max.x, max.y, min.z,
-        max.x, max.y, min.z,  min.x, max.y, min.z,
-        min.x, max.y, min.z,  min.x, min.y, min.z,
-
-        min.x, min.y, max.z,  max.x, min.y, max.z,
-        max.x, min.y, max.z,  max.x, max.y, max.z,
-        max.x, max.y, max.z,  min.x, max.y, max.z,
-        min.x, max.y, max.z,  min.x, min.y, max.z,
-
-        min.x, min.y, min.z,  min.x, min.y, max.z,
-        max.x, min.y, min.z,  max.x, min.y, max.z,
-        max.x, max.y, min.z,  max.x, max.y, max.z,
-        min.x, max.y, min.z,  min.x, max.y, max.z
-    };
-    // clang-format on
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_bboxVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(bboxVertices), bboxVertices);
-
-    m_bboxShader.use();
-    m_bboxShader.setMat4("view", m_viewMatrix);
-    m_bboxShader.setMat4("projection", m_projMatrix);
-    m_bboxShader.setMat4("model", obj.getModelMatrix());
-    m_bboxShader.setVec3("bboxColor", glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glBindVertexArray(m_bboxVAO);
-    glDrawArrays(GL_LINES, 0, 24);
-
-    glBindVertexArray(0);
-}
-
-void PathTracingRenderer::assignTextureToObject(
-    const int objectId, const int textureHandle) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        const TextureResource *res = getTextureResource(textureHandle);
-        obj->assignTexture(res ? textureHandle : -1);
-    }
-}
-
-void PathTracingRenderer::assignTextureToObject(
-    const int objectId, const std::string &texturePath)
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return;
-    }
-    if (const auto &obj = m_renderObjects[objectId]) {
-        const int textureHandle = texturePath.empty()
-            ? -1
-            : m_textureLibrary.loadTexture2D(texturePath, true);
-        obj->assignTexture(textureHandle);
-    }
-}
-
-int PathTracingRenderer::getObjectTextureHandle(const int objectId) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return -1;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        return obj->getTextureHandle();
-    }
-    return -1;
-}
-
-void PathTracingRenderer::setObjectFilter(
-    const int objectId, const FilterMode mode) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        obj->setFilterMode(mode);
-    }
-}
-
-FilterMode PathTracingRenderer::getObjectFilter(const int objectId) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return FilterMode::None;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        return obj->getFilterMode();
-    }
-    return FilterMode::None;
-}
-
-void PathTracingRenderer::setObjectUseTexture(
-    const int objectId, const bool useTexture) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        obj->setUseTexture(useTexture);
-    }
-}
-
-bool PathTracingRenderer::getObjectUseTexture(const int objectId) const
-{
-    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        return false;
-    }
-    if (auto &obj = m_renderObjects[objectId]) {
-        return obj->isUsingTexture();
-    }
-    return false;
-}
-
-void PathTracingRenderer::setToneMappingMode(const ToneMappingMode mode)
-{
-    m_toneMappingMode = mode;
-}
-
-void PathTracingRenderer::setToneMappingExposure(const float exposure)
-{
-    m_toneMappingExposure = std::clamp(exposure, 0.01f, 20.0f);
-}
-
-void PathTracingRenderer::setActiveCubemap(int cubemapHandle)
-{
-    m_textureLibrary.setActiveCubemap(cubemapHandle);
 }
 
 // Window-related methods
@@ -604,11 +212,6 @@ GLFWwindow *PathTracingRenderer::getWindow() const
 void PathTracingRenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
 {
     m_cameraOverlayCallback = std::move(callback);
-}
-
-void PathTracingRenderer::setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback)
-{
-    m_bboxDrawCallback = std::move(callback);
 }
 
 void PathTracingRenderer::renderAllViews(CameraManager &cameraManager)
@@ -660,6 +263,9 @@ void PathTracingRenderer::createCameraViews(const int id, int width, int height)
             std::cerr << "Framebuffer is incomplete!" << std::endl;
         }
 
+        // Initialize accumulation buffers for this camera
+        initCameraAccumulationBuffers(view);
+
         m_cameraViews[id] = std::move(view);
     }
 }
@@ -667,15 +273,16 @@ void PathTracingRenderer::createCameraViews(const int id, int width, int height)
 void PathTracingRenderer::destroyCameraViews(const int id)
 {
     if (const auto it = m_cameraViews.find(id); it != m_cameraViews.end()) {
-        const auto &view = it->second;
+        auto &view = it->second;
         glDeleteFramebuffers(1, &view.fbo);
         glDeleteTextures(1, &view.colorTex);
         glDeleteRenderbuffers(1, &view.depthRBO);
+        cleanupCameraAccumulationBuffers(view);
         m_cameraViews.erase(it);
     }
 }
 
-void PathTracingRenderer::renderCameraViews(const Camera &cam, const CameraView &view)
+void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
 {
     // Save current state
     GLint previousFBO;
@@ -683,34 +290,50 @@ void PathTracingRenderer::renderCameraViews(const Camera &cam, const CameraView 
     GLint previousViewport[4];
     glGetIntegerv(GL_VIEWPORT, previousViewport);
 
-    // Bind our framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, view.fbo);
+    // Check if we need to reset accumulation (camera moved)
+    if (shouldResetCameraAccumulation(cam, view)) {
+        resetCameraAccumulation(view);
+        view.lastViewPos = cam.getPosition();
+        view.lastViewRotation = cam.getRotation();
+    }
 
-    // Set viewport to match the view size
+    // Bind the current accumulation FBO to render to
+    glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[view.currentAccumulationBuffer]);
     glViewport(0, 0, view.size.x, view.size.y);
 
-    // Clear the framebuffer
-    glClearColor(0.4f, 0.2f, 0.2f, 1.0f);
+    // Render pathtraced content
+    m_pathTracingShader.use();
+    m_pathTracingShader.setVec3("viewPos", cam.getPosition());
+    glm::vec3 rotationRadians = glm::radians(cam.getRotation());
+    m_pathTracingShader.setVec3("viewRotation", rotationRadians);
+    float aspectRatio = (view.size.y > 0) ? (static_cast<float>(view.size.x) / static_cast<float>(view.size.y)) : 1.0f;
+    m_pathTracingShader.setFloat("aspectRatio", aspectRatio);
+    m_pathTracingShader.setInt("iFrame", view.iFrame);
+
+    // Bind the previous frame texture for accumulation
+    int previousBuffer = 1 - view.currentAccumulationBuffer;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[previousBuffer]);
+    m_pathTracingShader.setInt("previousFrame", 0);
+
+    glBindVertexArray(m_quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    // Now copy to the display framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, view.fbo);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Update view and projection matrices
-    setViewMatrix(cam.getViewMatrix());
-    setProjectionMode(cam.getProjectionMode());
-    setProjectionMatrix(cam.getProjectionMatrix());
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[view.currentAccumulationBuffer]);
+    glBindVertexArray(m_quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 
-    // Draw scene
-    drawAll();
-
-    // Draw bounding boxes if callback is set
-    if (m_bboxDrawCallback) {
-        m_bboxDrawCallback();
-    }
-
-    // Check for errors
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        std::cout << "OpenGL error after drawing to FBO: " << err << std::endl;
-    }
+    // Swap buffers for next frame
+    view.currentAccumulationBuffer = 1 - view.currentAccumulationBuffer;
+    view.iFrame++;
 
     // Restore previous state
     glBindFramebuffer(GL_FRAMEBUFFER, previousFBO);
@@ -804,6 +427,10 @@ void PathTracingRenderer::renderDockableViews(CameraManager &cameraManager)
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+            // Recreate accumulation buffers with new size
+            cleanupCameraAccumulationBuffers(view);
+            initCameraAccumulationBuffers(view);
+
             if (auto *cam = cameraManager.getCamera(id)) {
                 const float aspect = static_cast<float>(view.size.x)
                     / static_cast<float>(view.size.y);
@@ -841,4 +468,180 @@ void PathTracingRenderer::renderDockableViews(CameraManager &cameraManager)
 
         ImGui::End();
     }
+}
+
+void PathTracingRenderer::initAccumulationBuffers()
+{
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    int width = viewport[2];
+    int height = viewport[3];
+
+    if (width <= 0 || height <= 0) {
+        width = 1920;
+        height = 1080;
+    }
+
+    // Create two framebuffers and textures for ping-pong
+    glGenFramebuffers(2, m_accumulationFBO);
+    glGenTextures(2, m_accumulationTexture);
+
+    for (int i = 0; i < 2; i++) {
+        // Setup texture
+        glBindTexture(GL_TEXTURE_2D, m_accumulationTexture[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // Setup framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, m_accumulationFBO[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_accumulationTexture[i], 0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Accumulation framebuffer " << i << " is incomplete!" << std::endl;
+        }
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Clear both textures to black
+    for (int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_accumulationFBO[i]);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void PathTracingRenderer::cleanupAccumulationBuffers()
+{
+    glDeleteFramebuffers(2, m_accumulationFBO);
+    glDeleteTextures(2, m_accumulationTexture);
+}
+
+void PathTracingRenderer::resetAccumulation()
+{
+    m_iFrame = 0;
+
+    // Clear both accumulation buffers
+    for (int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_accumulationFBO[i]);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+bool PathTracingRenderer::shouldResetAccumulation(const Camera &cam) const
+{
+    const float epsilon = 0.0001f;
+
+    glm::vec3 currentPos = cam.getPosition();
+    glm::vec3 currentRot = cam.getRotation();
+
+    // Check if camera position or rotation has changed
+    if (glm::length(currentPos - m_lastViewPos) > epsilon) {
+        return true;
+    }
+
+    if (glm::length(currentRot - m_lastViewRotation) > epsilon) {
+        return true;
+    }
+
+    return false;
+}
+
+void PathTracingRenderer::initCameraAccumulationBuffers(CameraView &view)
+{
+    int width = view.size.x;
+    int height = view.size.y;
+
+    if (width <= 0 || height <= 0) {
+        width = 512;
+        height = 512;
+    }
+
+    // Create two framebuffers and textures for ping-pong
+    glGenFramebuffers(2, view.accumulationFBO);
+    glGenTextures(2, view.accumulationTexture);
+
+    for (int i = 0; i < 2; i++) {
+        // Setup texture
+        glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // Setup framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, view.accumulationTexture[i], 0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Camera accumulation framebuffer " << i << " is incomplete!" << std::endl;
+        }
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Clear both textures to black
+    for (int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[i]);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void PathTracingRenderer::cleanupCameraAccumulationBuffers(CameraView &view)
+{
+    if (view.accumulationFBO[0] != 0 || view.accumulationFBO[1] != 0) {
+        glDeleteFramebuffers(2, view.accumulationFBO);
+        view.accumulationFBO[0] = 0;
+        view.accumulationFBO[1] = 0;
+    }
+    if (view.accumulationTexture[0] != 0 || view.accumulationTexture[1] != 0) {
+        glDeleteTextures(2, view.accumulationTexture);
+        view.accumulationTexture[0] = 0;
+        view.accumulationTexture[1] = 0;
+    }
+}
+
+void PathTracingRenderer::resetCameraAccumulation(CameraView &view)
+{
+    view.iFrame = 0;
+
+    // Clear both accumulation buffers
+    for (int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[i]);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+bool PathTracingRenderer::shouldResetCameraAccumulation(const Camera &cam, CameraView &view) const
+{
+    const float epsilon = 0.0001f;
+
+    glm::vec3 currentPos = cam.getPosition();
+    glm::vec3 currentRot = cam.getRotation();
+
+    // Check if camera position or rotation has changed
+    if (glm::length(currentPos - view.lastViewPos) > epsilon) {
+        return true;
+    }
+
+    if (glm::length(currentRot - view.lastViewRotation) > epsilon) {
+        return true;
+    }
+
+    return false;
 }

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "../interface/IRenderer.hpp"
+#include "Camera.hpp"
 #include "renderer/Window.hpp"
 #include "ShaderProgram.hpp"
 #include "renderer/TextureLibrary.hpp"
@@ -20,28 +21,39 @@ class PathTracingRenderer : public IRenderer {
 private:
     Window &m_window;
 
+    int m_iFrame = 0;
     glm::mat4 m_viewMatrix { 1.0f };
     glm::mat4 m_projMatrix { 1.0f };
     Camera::ProjectionMode m_projectionMode {
         Camera::ProjectionMode::Perspective
     };
 
-    ShaderProgram m_lightingShader;
-    ShaderProgram m_vectorialShader;
-    ShaderProgram m_pointLightShader;
-    ShaderProgram m_bboxShader;
-    ShaderProgram m_skyboxShader;
+    // Main view accumulation buffers
+    unsigned int m_accumulationFBO[2] = {0, 0};
+    unsigned int m_accumulationTexture[2] = {0, 0};
+    int m_currentAccumulationBuffer = 0;
+    glm::vec3 m_lastViewPos = glm::vec3(0.0f);
+    glm::vec3 m_lastViewRotation = glm::vec3(0.0f);
+
+    void initAccumulationBuffers();
+    void cleanupAccumulationBuffers();
+    void resetAccumulation();
+    bool shouldResetAccumulation(const Camera &cam) const;
+
+    // Per-camera accumulation methods
+    void initCameraAccumulationBuffers(CameraView &view);
+    void cleanupCameraAccumulationBuffers(CameraView &view);
+    void resetCameraAccumulation(CameraView &view);
+    bool shouldResetCameraAccumulation(const Camera &cam, CameraView &view) const;
+
+    ShaderProgram m_pathTracingShader;
 
     std::vector<std::unique_ptr<RenderableObject>> m_renderObjects;
     std::vector<int> m_freeSlots;
 
     TextureLibrary m_textureLibrary;
 
-    unsigned int m_skyboxVAO = 0;
-    unsigned int m_skyboxVBO = 0;
-
-    unsigned int m_bboxVAO = 0;
-    unsigned int m_bboxVBO = 0;
+    unsigned int m_quadVBO, m_quadVAO;
 
     ToneMappingMode m_toneMappingMode = ToneMappingMode::Reinhard;
     float m_toneMappingExposure = 1.0f;
@@ -52,10 +64,7 @@ private:
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
 
-    void initializeSkyboxGeometry();
-    void drawSkybox() const;
-    void createBoundingBoxBuffers();
-    void renderCameraViews(const Camera &cam, const CameraView &view);
+    void renderCameraViews(const Camera &cam, CameraView &view);
     void renderDockableViews(CameraManager &cameraManager);
 
 public:
@@ -79,7 +88,7 @@ public:
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
-        const glm::vec3 &corner2) override;
+        const glm::vec3 &corner2) override { return; }
     std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
 
     // Camera Related
@@ -97,7 +106,7 @@ public:
 
     // Rendering related
     void beginFrame() override;
-    void drawAll() override;
+    void drawAll(Camera cam) override;
     void endFrame() override;
 
     // Window related
@@ -115,7 +124,7 @@ public:
     void destroyCameraViews(int id) override;
     void renderAllViews(CameraManager &cameraManager) override;
     void setCameraOverlayCallback(CameraOverlayCallback callback) override;
-    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override;
+    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override { return; }
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);
     int createCheckerboardTexture(const std::string &name, int width,

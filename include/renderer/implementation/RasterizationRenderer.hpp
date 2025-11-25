@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../interface/IRenderer.hpp"
+#include "Camera.hpp"
 #include "renderer/Window.hpp"
 #include "ShaderProgram.hpp"
 #include "renderer/TextureLibrary.hpp"
@@ -96,7 +97,7 @@ public:
 
     // Rendering related
     void beginFrame() override;
-    void drawAll() override;
+    void drawAll(Camera cam) override;
     void endFrame() override;
 
     // Window related

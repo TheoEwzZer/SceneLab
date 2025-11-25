@@ -51,7 +51,7 @@ public:
     virtual void setProjectionMode(Camera::ProjectionMode mode) = 0;
 
     // Rendering Related
-    virtual void drawAll() = 0;
+    virtual void drawAll(Camera cam) = 0;
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;
 
@@ -89,5 +89,13 @@ protected:
         ImVec2 lastPos = ImVec2(0.0f, 0.0f);
         ImVec2 lastSize = ImVec2(512.0f, 512.0f);
         bool hasState = false;
+
+        // Per-camera accumulation buffers
+        unsigned int accumulationFBO[2] = {0, 0};
+        unsigned int accumulationTexture[2] = {0, 0};
+        int currentAccumulationBuffer = 0;
+        int iFrame = 0;
+        glm::vec3 lastViewPos = glm::vec3(0.0f);
+        glm::vec3 lastViewRotation = glm::vec3(0.0f);
     };
 };

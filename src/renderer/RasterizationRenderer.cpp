@@ -1,4 +1,5 @@
 #include "renderer/implementation/RasterizationRenderer.hpp"
+#include "Camera.hpp"
 #include "ShaderProgram.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -363,7 +364,7 @@ void RasterizationRenderer::drawSkybox() const
     glDepthFunc(GL_LESS);
 }
 
-void RasterizationRenderer::drawAll()
+void RasterizationRenderer::drawAll(Camera cam)
 {
     drawSkybox();
 
@@ -699,7 +700,7 @@ void RasterizationRenderer::renderCameraViews(const Camera &cam, const CameraVie
     setProjectionMatrix(cam.getProjectionMatrix());
 
     // Draw scene
-    drawAll();
+    drawAll(cam);
 
     // Draw bounding boxes if callback is set
     if (m_bboxDrawCallback) {
