@@ -266,6 +266,106 @@ std::vector<std::unique_ptr<RenderableObject>> RasterizationRenderer::extractAll
     return objects;
 }
 
+void RasterizationRenderer::setObjectColor(int objectId, const glm::vec3 &color)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setColor(color);
+}
+
+glm::vec3 RasterizationRenderer::getObjectColor(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return glm::vec3(1.0f);
+    if (!m_renderObjects[objectId])
+        return glm::vec3(1.0f);
+
+    return m_renderObjects[objectId]->getColor();
+}
+
+void RasterizationRenderer::setObjectEmissive(int objectId, const glm::vec3 &emissive)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setEmissive(emissive);
+}
+
+glm::vec3 RasterizationRenderer::getObjectEmissive(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return glm::vec3(0.0f);
+    if (!m_renderObjects[objectId])
+        return glm::vec3(0.0f);
+
+    return m_renderObjects[objectId]->getEmissive();
+}
+
+void RasterizationRenderer::setObjectPercentSpecular(int objectId, float percent)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setPercentSpecular(percent);
+}
+
+float RasterizationRenderer::getObjectPercentSpecular(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return 0.0f;
+    if (!m_renderObjects[objectId])
+        return 0.0f;
+
+    return m_renderObjects[objectId]->getPercentSpecular();
+}
+
+void RasterizationRenderer::setObjectRoughness(int objectId, float roughness)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setRoughness(roughness);
+}
+
+float RasterizationRenderer::getObjectRoughness(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return 0.5f;
+    if (!m_renderObjects[objectId])
+        return 0.5f;
+
+    return m_renderObjects[objectId]->getRoughness();
+}
+
+void RasterizationRenderer::setObjectSpecularColor(int objectId, const glm::vec3 &color)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setSpecularColor(color);
+}
+
+glm::vec3 RasterizationRenderer::getObjectSpecularColor(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return glm::vec3(1.0f);
+    if (!m_renderObjects[objectId])
+        return glm::vec3(1.0f);
+
+    return m_renderObjects[objectId]->getSpecularColor();
+}
+
 void RasterizationRenderer::beginFrame()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

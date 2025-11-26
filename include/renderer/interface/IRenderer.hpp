@@ -45,6 +45,18 @@ public:
         = 0;
     virtual std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() = 0;
 
+    // Material property accessors
+    virtual void setObjectColor(int objectId, const glm::vec3 &color) = 0;
+    virtual glm::vec3 getObjectColor(int objectId) const = 0;
+    virtual void setObjectEmissive(int objectId, const glm::vec3 &emissive) = 0;
+    virtual glm::vec3 getObjectEmissive(int objectId) const = 0;
+    virtual void setObjectPercentSpecular(int objectId, float percent) = 0;
+    virtual float getObjectPercentSpecular(int objectId) const = 0;
+    virtual void setObjectRoughness(int objectId, float roughness) = 0;
+    virtual float getObjectRoughness(int objectId) const = 0;
+    virtual void setObjectSpecularColor(int objectId, const glm::vec3 &color) = 0;
+    virtual glm::vec3 getObjectSpecularColor(int objectId) const = 0;
+
     // Camera Related
     virtual void setViewMatrix(const glm::mat4 &view) = 0;
     virtual void setProjectionMatrix(const glm::mat4 &proj) = 0;

@@ -16,6 +16,14 @@
 
 #include <memory>
 
+struct Triangle {
+    glm::vec3 v0, v1, v2;
+    glm::vec3 color;
+    glm::vec3 emissive;
+    float percentSpecular;
+    float roughness;
+    glm::vec3 specularColor;
+};
 
 class PathTracingRenderer : public IRenderer {
 private:
@@ -27,6 +35,21 @@ private:
     Camera::ProjectionMode m_projectionMode {
         Camera::ProjectionMode::Perspective
     };
+
+    std::vector<float> texData;
+
+    std::vector<Triangle> m_triangles;
+    GLuint m_triangleTexture = 0;
+
+    struct ObjectData {
+        std::unique_ptr<RenderableObject> renderObject;
+        glm::mat4 transform;
+        int triangleStartIndex;
+        int triangleCount;
+    };
+    std::vector<ObjectData> m_objects;
+
+    void rebuildTriangleArray();
 
     // Main view accumulation buffers
     unsigned int m_accumulationFBO[2] = {0, 0};
@@ -90,6 +113,18 @@ public:
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
         const glm::vec3 &corner2) override { return; }
     std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
+
+    // Material property accessors
+    void setObjectColor(int objectId, const glm::vec3 &color) override;
+    glm::vec3 getObjectColor(int objectId) const override;
+    void setObjectEmissive(int objectId, const glm::vec3 &emissive) override;
+    glm::vec3 getObjectEmissive(int objectId) const override;
+    void setObjectPercentSpecular(int objectId, float percent) override;
+    float getObjectPercentSpecular(int objectId) const override;
+    void setObjectRoughness(int objectId, float roughness) override;
+    float getObjectRoughness(int objectId) const override;
+    void setObjectSpecularColor(int objectId, const glm::vec3 &color) override;
+    glm::vec3 getObjectSpecularColor(int objectId) const override;
 
     // Camera Related
     void setViewMatrix(const glm::mat4 &view) override { m_viewMatrix = view; }
@@ -169,3 +204,4 @@ public:
 
     const std::vector<int> &getCubemapHandles() const;
 };
+

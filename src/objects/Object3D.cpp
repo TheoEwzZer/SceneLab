@@ -21,6 +21,8 @@ Object3D::Object3D(const std::vector<float> &vertices,
 void Object3D::init(const std::vector<float> &vertices,
     const std::vector<unsigned int> &indices)
 {
+    m_vertices = vertices;
+    m_indices = indices;
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);

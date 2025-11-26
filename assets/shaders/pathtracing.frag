@@ -4,17 +4,71 @@ in vec3 FragPos;
 uniform vec3 viewPos;
 uniform vec3 viewRotation; // pitch, yaw, roll in radians
 uniform float aspectRatio; // width / height
+uniform float fov;
 uniform int iFrame;
 uniform sampler2D previousFrame; // Previous frame's accumulated color
+uniform sampler2D trianglesTex;
+uniform int numTriangles;
+
+struct SMaterialInfo
+{
+    vec3 albedo;
+    vec3 emissive;
+    float percentSpecular;
+    float roughness;
+    vec3 specularColor;
+};
 
 struct SRayHitInfo
 {
     float dist;
     vec3 normal;
-    vec3 albedo;
-    vec3 emissive;
+    SMaterialInfo material;
 };
 
+struct Triangle {
+    vec3 v0;
+    vec3 v1;
+    vec3 v2;
+    vec3 color;
+    vec3 emissive;
+    float percentSpecular;
+    float roughness;
+    vec3 specularColor;
+};
+
+Triangle loadTriangle(int triIndex)
+{
+    Triangle t;
+
+    // Layout: width=5 pixels per row
+    // Pixel 0: [v0.xyz, v1.x]
+    vec4 p0 = texelFetch(trianglesTex, ivec2(0, triIndex), 0);
+    t.v0 = p0.xyz;
+
+    // Pixel 1: [v1.yz, v2.xy]
+    vec4 p1 = texelFetch(trianglesTex, ivec2(1, triIndex), 0);
+    t.v1 = vec3(p0.w, p1.xy);
+
+    // Pixel 2: [v2.z, color.xyz]
+    vec4 p2 = texelFetch(trianglesTex, ivec2(2, triIndex), 0);
+    t.v2 = vec3(p1.zw, p2.x);
+    t.color = p2.yzw;
+
+    // Pixel 3: [emissive.xyz, percentSpecular]
+    vec4 p3 = texelFetch(trianglesTex, ivec2(3, triIndex), 0);
+    t.emissive = p3.xyz;
+    t.percentSpecular = p3.w;
+
+    // Pixel 4: [roughness, specularColor.xyz]
+    vec4 p4 = texelFetch(trianglesTex, ivec2(4, triIndex), 0);
+    t.roughness = p4.x;
+    t.specularColor = p4.yzw;
+
+    return t;
+}
+
+const float c_epsilon = 0.0001f;
 const float c_pi = 3.14159265359f;
 const float c_twopi = 2.0f * c_pi;
 const float c_rayPosNormalNudge = 0.01f;
@@ -103,6 +157,41 @@ bool TestQuadTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in ve
         info.dist = dist;
         info.normal = normal;
         return true;
+    }
+
+    return false;
+}
+
+bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in vec3 a, in vec3 b, in vec3 c)
+{
+    float hit;
+    vec3 barycentricCoord;
+    vec3 triangleNormal;
+
+    vec3 e0 = b - a;
+    vec3 e1 = a - c;
+    triangleNormal = cross(e1 , e0);
+
+    float valueDot = 1.0 / dot( triangleNormal, rayDir );
+
+    vec3 e2 = ( valueDot ) * ( a - rayPos );
+    vec3 i  = cross(rayDir , e2);
+
+    barycentricCoord.y = dot( i, e1 );
+    barycentricCoord.z = dot( i, e0 );
+    barycentricCoord.x = 1.0 - (barycentricCoord.z + barycentricCoord.y);
+    hit = dot( triangleNormal, e2 );
+
+    bool hitTest = (hit > c_epsilon) && (barycentricCoord.x > 0 && barycentricCoord.y >0 && barycentricCoord.z > 0);
+
+    if (hitTest)
+    {
+          if (hit > c_minimumRayHitTime && hit < info.dist)
+        {
+            info.dist = hit;
+            info.normal = normalize(triangleNormal);
+            return true;
+        }
     }
 
     return false;
@@ -201,106 +290,37 @@ vec3 RandomUnitVector(inout uint state)
 }
 
 void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
-{    
-    // to move the scene around, since we can't move the camera yet
-    vec3 sceneTranslation = vec3(0.0f, 0.0f, 10.0f);
-    vec4 sceneTranslation4 = vec4(sceneTranslation, 0.0f);
-    
-   	// back wall
-    {
-        vec3 A = vec3(-12.6f, -12.6f, -25.0f) + sceneTranslation;
-        vec3 B = vec3( 12.6f, -12.6f, -25.0f) + sceneTranslation;
-        vec3 C = vec3( 12.6f,  12.6f, -25.0f) + sceneTranslation;
-        vec3 D = vec3(-12.6f,  12.6f, -25.0f) + sceneTranslation;
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.albedo = vec3(0.7f, 0.7f, 0.7f);
-            hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-        }
-	}    
-    
-    // floor
-    {
-        vec3 A = vec3(-12.6f, -12.45f, -25.0f) + sceneTranslation;
-        vec3 B = vec3( 12.6f, -12.45f, -25.0f) + sceneTranslation;
-        vec3 C = vec3( 12.6f, -12.45f, -15.0f) + sceneTranslation;
-        vec3 D = vec3(-12.6f, -12.45f, -15.0f) + sceneTranslation;
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.albedo = vec3(0.7f, 0.7f, 0.7f);
-            hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-        }        
-    }
-    
-    // cieling
-    {
-        vec3 A = vec3(-12.6f, 12.5f, -25.0f) + sceneTranslation;
-        vec3 B = vec3( 12.6f, 12.5f, -25.0f) + sceneTranslation;
-        vec3 C = vec3( 12.6f, 12.5f, -15.0f) + sceneTranslation;
-        vec3 D = vec3(-12.6f, 12.5f, -15.0f) + sceneTranslation;
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.albedo = vec3(0.7f, 0.7f, 0.7f);
-            hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-        }        
-    }    
-    
-    // left wall
-    {
-        vec3 A = vec3(-12.5f, -12.6f, -25.0f) + sceneTranslation;
-        vec3 B = vec3(-12.5f, -12.6f, -15.0f) + sceneTranslation;
-        vec3 C = vec3(-12.5f,  12.6f, -15.0f) + sceneTranslation;
-        vec3 D = vec3(-12.5f,  12.6f, -25.0f) + sceneTranslation;
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.albedo = vec3(0.7f, 0.1f, 0.1f);
-            hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-        }        
-    }
-    
-    // right wall 
-    {
-        vec3 A = vec3( 12.5f, -12.6f, -25.0f) + sceneTranslation;
-        vec3 B = vec3( 12.5f, -12.6f, -15.0f) + sceneTranslation;
-        vec3 C = vec3( 12.5f,  12.6f, -15.0f) + sceneTranslation;
-        vec3 D = vec3( 12.5f,  12.6f, -25.0f) + sceneTranslation;
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.albedo = vec3(0.1f, 0.7f, 0.1f);
-            hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-        }        
-    }    
-    
+{
     // light
     {
-        vec3 A = vec3(-5.0f, 12.4f,  -22.5f) + sceneTranslation;
-        vec3 B = vec3( 5.0f, 12.4f,  -22.5f) + sceneTranslation;
-        vec3 C = vec3( 5.0f, 12.4f,  -17.5f) + sceneTranslation;
-        vec3 D = vec3(-5.0f, 12.4f,  -17.5f) + sceneTranslation;
+        vec3 A = vec3(-5.0f, 12.4f,  -12.5f);
+        vec3 B = vec3( 5.0f, 12.4f,  -12.5f);
+        vec3 C = vec3( 5.0f, 12.4f,  -7.5f);
+        vec3 D = vec3(-5.0f, 12.4f,  -7.5f);
         if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
         {
-            hitInfo.albedo = vec3(0.0f, 0.0f, 0.0f);
-            hitInfo.emissive = vec3(1.0f, 0.9f, 0.7f) * 20.0f;
-        }        
+            hitInfo.material.albedo = vec3(0.0f, 0.0f, 0.0f);
+            hitInfo.material.emissive = vec3(15.0f, 15.0f, 15.0f);
+            hitInfo.material.percentSpecular = 0.0f;
+            hitInfo.material.roughness = 0.0f;
+            hitInfo.material.specularColor = vec3(1.0f, 1.0f, 1.0f);
+        }
     }
-    
-	if (TestSphereTrace(rayPos, rayDir, hitInfo, vec4(-9.0f, -9.5f, -20.0f, 3.0f)+sceneTranslation4))
-    {
-        hitInfo.albedo = vec3(0.9f, 0.9f, 0.75f);
-        hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);        
-    } 
-    
-	if (TestSphereTrace(rayPos, rayDir, hitInfo, vec4(0.0f, -9.5f, -20.0f, 3.0f)+sceneTranslation4))
-    {
-        hitInfo.albedo = vec3(0.9f, 0.75f, 0.9f);
-        hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);        
-    }    
-    
-	if (TestSphereTrace(rayPos, rayDir, hitInfo, vec4(9.0f, -9.5f, -20.0f, 3.0f)+sceneTranslation4))
-    {
-        hitInfo.albedo = vec3(0.75f, 0.9f, 0.9f);
-        hitInfo.emissive = vec3(0.0f, 0.0f, 0.0f);
-    }    
+
+    for (int triIndex = 0; triIndex < numTriangles; ++triIndex) {
+        Triangle tri = loadTriangle(triIndex);
+        if (TestTriangleTrace(rayPos, rayDir, hitInfo,
+              tri.v0,
+              tri.v1,
+              tri.v2))
+        {
+            hitInfo.material.albedo = tri.color;
+            hitInfo.material.emissive = tri.emissive;
+            hitInfo.material.percentSpecular = tri.percentSpecular;
+            hitInfo.material.roughness = tri.roughness;
+            hitInfo.material.specularColor = tri.specularColor;
+        }
+    }
 }
 
 vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngState)
@@ -325,14 +345,19 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
         // update the ray position
         rayPos = (rayPos + rayDir * hitInfo.dist) + hitInfo.normal * c_rayPosNormalNudge;
 
-        // calculate new ray direction, in a cosine weighted hemisphere oriented at normal
-        rayDir = normalize(hitInfo.normal + RandomUnitVector(rngState));
+        // calculate whether we are going to do a diffuse or specular reflection ray
+        float doSpecular = (RandomFloat01(rngState) < hitInfo.material.percentSpecular) ? 1.0f : 0.0f;
+
+        vec3 diffuseRayDir = normalize(hitInfo.normal + RandomUnitVector(rngState));
+        vec3 specularRayDir = reflect(rayDir, hitInfo.normal);
+        specularRayDir = normalize(mix(specularRayDir, diffuseRayDir, hitInfo.material.roughness * hitInfo.material.roughness));
+        rayDir = mix(diffuseRayDir, specularRayDir, doSpecular);
 
         // add in emissive lighting
-        ret += hitInfo.emissive * throughput;
+        ret += hitInfo.material.emissive * throughput;
 
         // update the colorMultiplier
-        throughput *= hitInfo.albedo;
+        throughput *= mix(hitInfo.material.albedo, hitInfo.material.specularColor, doSpecular);
     }
 
     // return pixel color
@@ -341,34 +366,32 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
 
 void main()
 {
-    vec2 pixelCoord = (vec2(FragPos.x, FragPos.y) + 1.0) * 1000; // Scale to reasonable pixel range
+    vec2 pixelCoord = (vec2(FragPos.x, FragPos.y) + 1.0) * 1000;
     uint rngState = uint(pixelCoord.x) * uint(1973) + uint(pixelCoord.y) * uint(9277) + uint(iFrame) * uint(26699);
-    rngState = rngState | uint(1); // Ensure odd number
+    rngState = rngState | uint(1);
 
     vec3 rayPosition = viewPos;
 
+    // Calculate focal length from FOV
+    float fovRadians = radians(fov);
+    float focalLength = 1.0 / tan(fovRadians * 0.5);
+
     vec2 pixelTarget2D = vec2(FragPos.x * aspectRatio, FragPos.y);
 
-    vec3 rayDirLocal = normalize(vec3(pixelTarget2D, -1.0));
+    vec3 rayDirLocal = normalize(vec3(pixelTarget2D, -focalLength));
 
     mat3 rotationMatrix = getRotationMatrix(viewRotation);
 
     vec3 rayDir = rotationMatrix * rayDirLocal;
 
-    // Calculate current frame's path traced color
     vec3 currentColor = GetColorForRay(rayPosition, rayDir, rngState);
 
-    // Get UV coordinates for texture sampling using pixel coordinates
-    // gl_FragCoord gives us pixel coordinates, we need to normalize them
     vec2 uv = gl_FragCoord.xy / vec2(textureSize(previousFrame, 0));
 
-    // Accumulate with previous frames
     vec3 accumulatedColor;
     if (iFrame == 0) {
-        // First frame, no accumulation
         accumulatedColor = currentColor;
     } else {
-        // Progressive averaging: blend current sample with accumulated result
         vec3 previousColor = texture(previousFrame, uv).rgb;
         float weight = 1.0 / float(iFrame + 1);
         accumulatedColor = mix(previousColor, currentColor, weight);

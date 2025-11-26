@@ -215,6 +215,78 @@ void TransformManager::renderTransformUI(bool leftShiftPressed)
 
     ImGui::Separator();
 
+    // Material Properties
+    if (ImGui::CollapsingHeader("Material Properties")) {
+        int rendererId = m_selectedNodes[0]->getData().rendererId;
+
+        if (rendererId >= 0) {
+            // Color
+            glm::vec3 color = m_renderer->getObjectColor(rendererId);
+            float colorArray[3] = {color.r, color.g, color.b};
+            if (ImGui::ColorEdit3("Color", colorArray)) {
+                glm::vec3 newColor(colorArray[0], colorArray[1], colorArray[2]);
+                for (auto *node : m_selectedNodes) {
+                    int objId = node->getData().rendererId;
+                    if (objId >= 0) {
+                        m_renderer->setObjectColor(objId, newColor);
+                    }
+                }
+            }
+
+            // Emissive
+            glm::vec3 emissive = m_renderer->getObjectEmissive(rendererId);
+            float emissiveArray[3] = {emissive.r, emissive.g, emissive.b};
+            if (ImGui::ColorEdit3("Emissive", emissiveArray)) {
+                glm::vec3 newEmissive(emissiveArray[0], emissiveArray[1], emissiveArray[2]);
+                for (auto *node : m_selectedNodes) {
+                    int objId = node->getData().rendererId;
+                    if (objId >= 0) {
+                        m_renderer->setObjectEmissive(objId, newEmissive);
+                    }
+                }
+            }
+
+            // Percent Specular
+            float percentSpecular = m_renderer->getObjectPercentSpecular(rendererId);
+            if (ImGui::SliderFloat("Percent Specular", &percentSpecular, 0.0f, 1.0f)) {
+                for (auto *node : m_selectedNodes) {
+                    int objId = node->getData().rendererId;
+                    if (objId >= 0) {
+                        m_renderer->setObjectPercentSpecular(objId, percentSpecular);
+                    }
+                }
+            }
+
+            // Roughness
+            float roughness = m_renderer->getObjectRoughness(rendererId);
+            if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f)) {
+                for (auto *node : m_selectedNodes) {
+                    int objId = node->getData().rendererId;
+                    if (objId >= 0) {
+                        m_renderer->setObjectRoughness(objId, roughness);
+                    }
+                }
+            }
+
+            // Specular Color
+            glm::vec3 specularColor = m_renderer->getObjectSpecularColor(rendererId);
+            float specularArray[3] = {specularColor.r, specularColor.g, specularColor.b};
+            if (ImGui::ColorEdit3("Specular Color", specularArray)) {
+                glm::vec3 newSpecularColor(specularArray[0], specularArray[1], specularArray[2]);
+                for (auto *node : m_selectedNodes) {
+                    int objId = node->getData().rendererId;
+                    if (objId >= 0) {
+                        m_renderer->setObjectSpecularColor(objId, newSpecularColor);
+                    }
+                }
+            }
+        } else {
+            ImGui::TextDisabled("No renderable object");
+        }
+    }
+
+    ImGui::Separator();
+
     // Gizmo operation selection
     ImGui::Text("Gizmo Mode");
     if (ImGui::RadioButton(

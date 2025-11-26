@@ -82,6 +82,18 @@ public:
         const glm::vec3 &corner2) override;
     std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
 
+    // Material property accessors
+    void setObjectColor(int objectId, const glm::vec3 &color) override;
+    glm::vec3 getObjectColor(int objectId) const override;
+    void setObjectEmissive(int objectId, const glm::vec3 &emissive) override;
+    glm::vec3 getObjectEmissive(int objectId) const override;
+    void setObjectPercentSpecular(int objectId, float percent) override;
+    float getObjectPercentSpecular(int objectId) const override;
+    void setObjectRoughness(int objectId, float roughness) override;
+    float getObjectRoughness(int objectId) const override;
+    void setObjectSpecularColor(int objectId, const glm::vec3 &color) override;
+    glm::vec3 getObjectSpecularColor(int objectId) const override;
+
     // Camera Related
     void setViewMatrix(const glm::mat4 &view) override { m_viewMatrix = view; }
 

@@ -27,6 +27,13 @@ protected:
     FilterMode filterMode = FilterMode::None;
 
     glm::vec3 m_color = glm::vec3(1.0f);
+    std::vector<float> m_vertices;
+    std::vector<unsigned int> m_indices;
+
+    glm::vec3 m_emissive = glm::vec3(0.0f);
+    float m_percentSpecular = 0.0f;
+    float m_roughness = 0.5f;
+    glm::vec3 m_specularColor = glm::vec3(1.0f);
 
 public:
     RenderableObject() = default;
@@ -71,11 +78,26 @@ public:
 
     [[nodiscard]] glm::vec3 getColor() const { return m_color; }
 
+    void setEmissive(const glm::vec3 &emissive) { m_emissive = emissive; }
+    [[nodiscard]] glm::vec3 getEmissive() const { return m_emissive; }
+
+    void setPercentSpecular(float percent) { m_percentSpecular = percent; }
+    [[nodiscard]] float getPercentSpecular() const { return m_percentSpecular; }
+
+    void setRoughness(float roughness) { m_roughness = roughness; }
+    [[nodiscard]] float getRoughness() const { return m_roughness; }
+
+    void setSpecularColor(const glm::vec3 &color) { m_specularColor = color; }
+    [[nodiscard]] glm::vec3 getSpecularColor() const { return m_specularColor; }
+
     void assignTexture(const int textureHandle)
     {
         m_textureHandle = textureHandle;
         m_useTexture = (textureHandle != -1);
     }
+
+    std::vector<float> &getVertices() { return m_vertices; }
+    std::vector<unsigned int> &getIndices() { return m_indices; }
 
     [[nodiscard]] int getTextureHandle() const { return m_textureHandle; }
 
