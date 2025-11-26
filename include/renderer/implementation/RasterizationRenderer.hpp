@@ -23,7 +23,7 @@ private:
 
     ShaderProgram m_lightingShader;
     ShaderProgram m_vectorialShader;
-    ShaderProgram m_pointLightShader;
+    ShaderProgram m_gouraudLightingShader;
     ShaderProgram m_bboxShader;
     ShaderProgram m_skyboxShader;
 

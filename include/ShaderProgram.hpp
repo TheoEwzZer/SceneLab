@@ -8,7 +8,7 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
-#define DEBUG_UNIFORMS 1
+#define DEBUG_UNIFORMS 0
 
 class ShaderProgram {
 public:
