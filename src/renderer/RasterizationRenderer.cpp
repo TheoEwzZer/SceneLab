@@ -495,6 +495,18 @@ void RasterizationRenderer::assignTextureToObject(
     }
 }
 
+void RasterizationRenderer::assignMaterialToObject(
+    const int objectId, Material &mat) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
+        return;
+    }
+    if (auto &obj = m_renderObjects[objectId]) {
+        obj->setMaterial(mat);
+    }
+}
+
+
 void RasterizationRenderer::assignTextureToObject(
     const int objectId, const std::string &texturePath)
 {

@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "TransformManager.hpp"
 #include "objects/Light.hpp"
 #include "GameObject.hpp"
 #include "renderer/interface/ARenderer.hpp"
@@ -18,7 +19,7 @@ namespace Illumination {
  */
 class UIIllumination {
 public:
-    UIIllumination();
+    UIIllumination(TransformManager &tref);
     ~UIIllumination();
 
     /**
@@ -34,6 +35,13 @@ protected:
     void renderUIIllumination(App *app);
 
     int m_illumination_model = 0;
+    float m_shininess = 10.0f;
+    float m_ambiant_color[3] = {0.1,0.1,0.1};
+    float m_diffuse_color[3] = {0.3,0.3,0.3};
+    float m_specular_color[3] = {0.5,0.5,0.5};
+    float m_emissive_color[3] = {0,0,0};
+
+    TransformManager &m_tref;
 
     // Persisted UI state
 

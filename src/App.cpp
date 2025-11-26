@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "illumination/Illumination.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
 
 #include "Camera.hpp"
@@ -32,6 +33,7 @@ App::App()
     m_cameraController
         = std::make_unique<CameraController>(m_camera, m_renderer);
 
+    illumination_ui = std::make_unique<Illumination::UIIllumination>(*m_transformManager);
     if (m_rasterRenderer) {
         m_textureManager = std::make_unique<TextureManager>(
             m_sceneGraph, *m_transformManager, *m_rasterRenderer);
@@ -227,7 +229,7 @@ void App::render()
     m_renderer->beginFrame();
 
     vectorial_ui.renderUI(this);
-    illumination_ui.renderUI(this);
+    illumination_ui->renderUI(this);
 
     m_transformManager->renderTransformUI(leftShiftPressed);
     m_image->renderUI();

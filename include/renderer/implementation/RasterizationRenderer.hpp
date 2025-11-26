@@ -98,6 +98,7 @@ public:
         bool srgb = false);
     void assignTextureToObject(int objectId, int textureHandle) const;
     void assignTextureToObject(int objectId, const std::string &texturePath);
+    void assignMaterialToObject(const int objectId, Material &mat) const;
     int getObjectTextureHandle(int objectId) const;
     void setObjectFilter(int objectId, FilterMode mode) const;
     FilterMode getObjectFilter(int objectId) const;

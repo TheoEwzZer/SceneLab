@@ -49,7 +49,7 @@ private:
     void updateCursor();
 
     Vect::UIDrawer vectorial_ui;
-    Illumination::UIIllumination illumination_ui;
+    std::unique_ptr<Illumination::UIIllumination> illumination_ui;
 
 public:
     explicit App();
