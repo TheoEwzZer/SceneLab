@@ -250,6 +250,7 @@ void main()
     vec4 sampledColor
         = useTexture ? texture(ourTexture, TexCoord) : vec4(1.0, 1.0, 1.0, 1.0);
     vec3 diffuseTextureColor = applyFilter(sampledColor.rgb);
+    vec3 normal = normalize(Normal);
 
     LightOutput LOutput;
     vec3 totalLight = vec3(0.0);
@@ -257,15 +258,15 @@ void main()
     vec3 emissive = objectMaterial.emissive;
     for(int i = 0; i < NB_DIR_LIGHTS; i++) {
         LOutput = prepareDirLight(directionalLights[i]);
-        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
+        totalLight += calculateLight(normal, LOutput, diffuseTextureColor);
     }
     for(int i = 0; i < NB_POINT_LIGHTS; i++) {
         LOutput = preparePointLight(pointLights[i]);
-        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
+        totalLight += calculateLight(normal, LOutput, diffuseTextureColor);
     }
     for(int i = 0; i < NB_SPOT_LIGHTS; i++) {
         LOutput = prepareSpotLight(spotLights[i]);
-        totalLight += calculateLight(Normal, LOutput, diffuseTextureColor);
+        totalLight += calculateLight(normal, LOutput, diffuseTextureColor);
     }
 
     vec3 shaded = ambient + emissive + totalLight;
