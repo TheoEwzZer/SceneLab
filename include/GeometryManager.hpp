@@ -3,7 +3,7 @@
 #include "GameObject.hpp"
 #include "SceneGraph.hpp"
 #include "GeometryImguiWindow.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 #include <memory>
 #include <functional>
 #include <string>
@@ -11,7 +11,7 @@
 class GeometryManager {
 public:
     GeometryManager(
-        SceneGraph &sceneGraph, std::unique_ptr<ARenderer> &renderer);
+        SceneGraph &sceneGraph, std::unique_ptr<IRenderer> &renderer);
 
     // Initialize geometry window callbacks
     void initGeometryWindow(std::function<void()> onObjectCreated);
@@ -24,6 +24,6 @@ public:
 
 private:
     SceneGraph &m_sceneGraph;
-    std::unique_ptr<ARenderer> &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
     GeometryImguiWindow m_geometryWindow;
 };

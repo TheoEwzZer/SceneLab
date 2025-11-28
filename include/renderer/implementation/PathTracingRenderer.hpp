@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include "../interface/IRenderer.hpp"
@@ -5,6 +6,7 @@
 #include "renderer/Window.hpp"
 #include "ShaderProgram.hpp"
 #include "renderer/TextureLibrary.hpp"
+#include "renderer/implementation/RasterizationRenderer.hpp"
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -14,34 +16,67 @@
 
 #include <memory>
 
-enum class ToneMappingMode : int { Off = 0, Reinhard, ACES };
+struct Triangle {
+    glm::vec3 v0, v1, v2;
+    glm::vec3 color;
+    glm::vec3 emissive;
+    float percentSpecular;
+    float roughness;
+    glm::vec3 specularColor;
+};
 
-class RasterizationRenderer : public IRenderer {
+class PathTracingRenderer : public IRenderer {
 private:
     Window &m_window;
 
+    int m_iFrame = 0;
     glm::mat4 m_viewMatrix { 1.0f };
     glm::mat4 m_projMatrix { 1.0f };
     Camera::ProjectionMode m_projectionMode {
         Camera::ProjectionMode::Perspective
     };
 
-    ShaderProgram m_lightingShader;
-    ShaderProgram m_vectorialShader;
-    ShaderProgram m_pointLightShader;
-    ShaderProgram m_bboxShader;
-    ShaderProgram m_skyboxShader;
+    std::vector<float> texData;
+
+    std::vector<Triangle> m_triangles;
+    GLuint m_triangleTexture = 0;
+
+    struct ObjectData {
+        std::unique_ptr<RenderableObject> renderObject;
+        glm::mat4 transform;
+        int triangleStartIndex;
+        int triangleCount;
+    };
+    std::vector<ObjectData> m_objects;
+
+    void rebuildTriangleArray();
+
+    // Main view accumulation buffers
+    unsigned int m_accumulationFBO[2] = {0, 0};
+    unsigned int m_accumulationTexture[2] = {0, 0};
+    int m_currentAccumulationBuffer = 0;
+    glm::vec3 m_lastViewPos = glm::vec3(0.0f);
+    glm::vec3 m_lastViewRotation = glm::vec3(0.0f);
+
+    void initAccumulationBuffers();
+    void cleanupAccumulationBuffers();
+    void resetAccumulation();
+    bool shouldResetAccumulation(const Camera &cam) const;
+
+    // Per-camera accumulation methods
+    void initCameraAccumulationBuffers(CameraView &view);
+    void cleanupCameraAccumulationBuffers(CameraView &view);
+    void resetCameraAccumulation(CameraView &view);
+    bool shouldResetCameraAccumulation(const Camera &cam, CameraView &view) const;
+
+    ShaderProgram m_pathTracingShader;
 
     std::vector<std::unique_ptr<RenderableObject>> m_renderObjects;
     std::vector<int> m_freeSlots;
 
     TextureLibrary m_textureLibrary;
 
-    unsigned int m_skyboxVAO = 0;
-    unsigned int m_skyboxVBO = 0;
-
-    unsigned int m_bboxVAO = 0;
-    unsigned int m_bboxVBO = 0;
+    unsigned int m_quadVBO, m_quadVAO;
 
     ToneMappingMode m_toneMappingMode = ToneMappingMode::Reinhard;
     float m_toneMappingExposure = 1.0f;
@@ -52,10 +87,7 @@ private:
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
 
-    void initializeSkyboxGeometry();
-    void drawSkybox() const;
-    void createBoundingBoxBuffers();
-    void renderCameraViews(const Camera &cam, const CameraView &view);
+    void renderCameraViews(const Camera &cam, CameraView &view);
     void renderDockableViews(CameraManager &cameraManager);
 
 public:
@@ -64,11 +96,11 @@ public:
     static constexpr std::array<const char *, 3> TONEMAP_LABELS { "Off",
         "Reinhard", "ACES" };
 
-    explicit RasterizationRenderer(Window &window);
-    virtual ~RasterizationRenderer() override;
+    explicit PathTracingRenderer(Window &window);
+    virtual ~PathTracingRenderer() override;
 
-    RasterizationRenderer(const RasterizationRenderer &) = delete;
-    RasterizationRenderer &operator=(const RasterizationRenderer &) = delete;
+    PathTracingRenderer(const PathTracingRenderer &) = delete;
+    PathTracingRenderer &operator=(const PathTracingRenderer &) = delete;
 
     // Object Related
     int registerObject(std::unique_ptr<RenderableObject> obj) override;
@@ -79,7 +111,7 @@ public:
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
-        const glm::vec3 &corner2) override;
+        const glm::vec3 &corner2) override { return; }
     std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
 
     // Material property accessors
@@ -127,7 +159,7 @@ public:
     void destroyCameraViews(int id) override;
     void renderAllViews(CameraManager &cameraManager) override;
     void setCameraOverlayCallback(CameraOverlayCallback callback) override;
-    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override;
+    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override { return; }
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);
     int createCheckerboardTexture(const std::string &name, int width,
@@ -172,3 +204,4 @@ public:
 
     const std::vector<int> &getCubemapHandles() const;
 };
+

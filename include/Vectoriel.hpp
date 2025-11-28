@@ -8,7 +8,7 @@
 #include <vector>
 #include "Vectoriel.hpp"
 #include "GameObject.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 
 class App;
 

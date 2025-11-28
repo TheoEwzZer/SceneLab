@@ -9,7 +9,7 @@
 #include "objects/Object3D.hpp"
 
 GeometryManager::GeometryManager(
-    SceneGraph &sceneGraph, std::unique_ptr<ARenderer> &renderer) :
+    SceneGraph &sceneGraph, std::unique_ptr<IRenderer> &renderer) :
     m_sceneGraph(sceneGraph),
     m_renderer(renderer)
 {
@@ -17,16 +17,20 @@ GeometryManager::GeometryManager(
 
 void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
 {
-    m_geometryWindow.onSpawnCube = [this, onObjectCreated](float size) {
+    m_geometryWindow.onSpawnCube = [this, onObjectCreated](float size, const MaterialProperties &mat) {
         GameObject new_obj;
         auto data { GeometryGenerator::generateCube(size) };
-        glm::vec3 randomColor { rand() / (float)RAND_MAX,
-            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
 
-        new_obj.rendererId = m_renderer->registerObject(
-            std::make_unique<Object3D>(
-                data.vertices, std::vector<unsigned int> {}),
-            randomColor);
+        auto object = std::make_unique<Object3D>(
+            data.vertices, std::vector<unsigned int> {}, mat.color);
+
+        // Set material properties
+        object->setEmissive(mat.emissive);
+        object->setPercentSpecular(mat.percentSpecular);
+        object->setRoughness(mat.roughness);
+        object->setSpecularColor(mat.specularColor);
+
+        new_obj.rendererId = m_renderer->registerObject(std::move(object));
         new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
         new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
         new_obj.setName(std::format("Cube {}", m_geometryWindow.m_cubeCount));
@@ -44,17 +48,21 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
     };
 
     m_geometryWindow.onSpawnSphere
-        = [this, onObjectCreated](float radius, int sectors, int stacks) {
+        = [this, onObjectCreated](float radius, int sectors, int stacks, const MaterialProperties &mat) {
               GameObject new_obj;
               auto data { GeometryGenerator::generateSphere(
                   radius, sectors, stacks) };
-              glm::vec3 randomColor { rand() / (float)RAND_MAX,
-                  rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
 
-              new_obj.rendererId = m_renderer->registerObject(
-                  std::make_unique<Object3D>(
-                      data.vertices, std::vector<unsigned int> {}),
-                  randomColor);
+              auto object = std::make_unique<Object3D>(
+                  data.vertices, std::vector<unsigned int> {}, mat.color);
+
+              // Set material properties
+              object->setEmissive(mat.emissive);
+              object->setPercentSpecular(mat.percentSpecular);
+              object->setRoughness(mat.roughness);
+              object->setSpecularColor(mat.specularColor);
+
+              new_obj.rendererId = m_renderer->registerObject(std::move(object));
               new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
               new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
               new_obj.setName(
@@ -73,17 +81,20 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
           };
 
     m_geometryWindow.onSpawnCylinder = [this, onObjectCreated](float radius,
-                                           float height, int sectors) {
+                                           float height, int sectors, const MaterialProperties &mat) {
         GameObject new_obj;
         auto data { GeometryGenerator::generateCylinder(
             radius, height, sectors) };
-        glm::vec3 randomColor { rand() / (float)RAND_MAX,
-            rand() / (float)RAND_MAX, rand() / (float)RAND_MAX };
 
-        new_obj.rendererId = m_renderer->registerObject(
-            std::make_unique<Object3D>(
-                data.vertices, std::vector<unsigned int> {}),
-            randomColor);
+        auto object = std::make_unique<Object3D>(
+            data.vertices, std::vector<unsigned int> {}, mat.color);
+
+        object->setEmissive(mat.emissive);
+        object->setPercentSpecular(mat.percentSpecular);
+        object->setRoughness(mat.roughness);
+        object->setSpecularColor(mat.specularColor);
+
+        new_obj.rendererId = m_renderer->registerObject(std::move(object));
         new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
         new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
         new_obj.setName(

@@ -8,13 +8,21 @@
 #include <glm/glm.hpp>
 #include <string>
 
+struct MaterialProperties {
+    glm::vec3 color = glm::vec3(1.0f);
+    glm::vec3 emissive = glm::vec3(0.0f);
+    float percentSpecular = 0.0f;
+    float roughness = 0.5f;
+    glm::vec3 specularColor = glm::vec3(1.0f);
+};
+
 class GeometryImguiWindow {
 public:
     void render();
 
-    std::function<void(float radius, int sectors, int stacks)> onSpawnSphere;
-    std::function<void(float size)> onSpawnCube;
-    std::function<void(float radius, float height, int sectors)>
+    std::function<void(float radius, int sectors, int stacks, const MaterialProperties &mat)> onSpawnSphere;
+    std::function<void(float size, const MaterialProperties &mat)> onSpawnCube;
+    std::function<void(float radius, float height, int sectors, const MaterialProperties &mat)>
         onSpawnCylinder;
     std::function<void(const std::string &objName, const std::string &objPath)>
         onLoadModel;
@@ -39,6 +47,8 @@ private:
     int m_cylinderSectors { 36 };
 
     int m_nbControlPoint { 5 };
+
+    MaterialProperties m_materialProps;
 };
 
 #endif /* GEOMETRYIMGUIWINDOW_H */

@@ -21,7 +21,8 @@
 #include "CameraController.hpp"
 #include "Vectoriel.hpp"
 #include "Image.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
+#include "renderer/Window.hpp"
 #include "TextureManager.hpp"
 #include "imgui.h"
 
@@ -33,6 +34,7 @@ class App {
     bool leftShiftPressed = false;
 
 private:
+    Window m_window;
     SceneGraph m_sceneGraph;
     CameraManager m_camera;
 
@@ -59,6 +61,6 @@ public:
     void run();
     GameObject &registerObject(GameObject &object);
 
-    std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<IRenderer> m_renderer;
     std::unique_ptr<Image> m_image;
 };
