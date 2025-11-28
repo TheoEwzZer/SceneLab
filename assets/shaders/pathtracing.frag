@@ -7,29 +7,35 @@ uniform float aspectRatio; // width / height
 uniform float focalLength; // Precomputed from FOV on CPU
 uniform int iFrame;
 uniform sampler2D previousFrame; // Previous frame's accumulated color
-uniform sampler2D triangleGeomTex;    // Geometry: v0, v1, v2, normal (3 pixels per triangle)
-uniform sampler2D triangleMaterialTex; // Materials: color, emissive, specular (3 pixels per triangle)
+uniform sampler2D
+    triangleGeomTex; // Geometry: v0, v1, v2, normal (3 pixels per triangle)
+uniform sampler2D triangleMaterialTex; // Materials: color, emissive, specular
+                                       // (3 pixels per triangle)
 uniform int numTriangles;
 
-uniform sampler2D sphereGeomTex;      // Geometry: center.xyz, radius (1 pixel per sphere)
-uniform sampler2D sphereMaterialTex;  // Materials: color, emissive, specular (3 pixels per sphere)
+uniform sampler2D
+    sphereGeomTex; // Geometry: center.xyz, radius (1 pixel per sphere)
+uniform sampler2D sphereMaterialTex; // Materials: color, emissive, specular (3
+                                     // pixels per sphere)
 uniform int numSpheres;
 
-uniform sampler2D planeGeomTex;       // Geometry: point.xyz, normal.xyz (2 pixels per plane)
-uniform sampler2D planeMaterialTex;   // Materials: color, emissive, specular (3 pixels per plane)
+uniform sampler2D
+    planeGeomTex; // Geometry: point.xyz, normal.xyz (2 pixels per plane)
+uniform sampler2D planeMaterialTex; // Materials: color, emissive, specular (3
+                                    // pixels per plane)
 uniform int numPlanes;
 
-struct SMaterialInfo
-{
+struct SMaterialInfo {
     vec3 albedo;
     vec3 emissive;
     float percentSpecular;
     float roughness;
     vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
-struct SRayHitInfo
-{
+struct SRayHitInfo {
     float dist;
     vec3 normal;
     SMaterialInfo material;
@@ -43,13 +49,15 @@ struct TriangleGeom {
     vec3 normal;
 };
 
-// Material data - only loaded for closest hit (3 fetches)
+// Material data - only loaded for closest hit (4 fetches)
 struct TriangleMaterial {
     vec3 color;
     vec3 emissive;
     float percentSpecular;
     float roughness;
     vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 // Sphere geometry data
@@ -65,6 +73,8 @@ struct SphereMaterial {
     float percentSpecular;
     float roughness;
     vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 // Plane geometry data
@@ -80,6 +90,8 @@ struct PlaneMaterial {
     float percentSpecular;
     float roughness;
     vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 // Fast geometry-only load - used during intersection testing
@@ -109,7 +121,7 @@ TriangleMaterial loadTriangleMaterial(int triIndex)
 {
     TriangleMaterial m;
 
-    // Layout: width=3 pixels per row
+    // Layout: width=4 pixels per row
     // Pixel 0: [color.xyz, percentSpecular]
     vec4 p0 = texelFetch(triangleMaterialTex, ivec2(0, triIndex), 0);
     m.color = p0.xyz;
@@ -120,9 +132,14 @@ TriangleMaterial loadTriangleMaterial(int triIndex)
     m.emissive = p1.xyz;
     m.roughness = p1.w;
 
-    // Pixel 2: [specularColor.xyz, padding]
+    // Pixel 2: [specularColor.xyz, indexOfRefraction]
     vec4 p2 = texelFetch(triangleMaterialTex, ivec2(2, triIndex), 0);
     m.specularColor = p2.xyz;
+    m.indexOfRefraction = p2.w;
+
+    // Pixel 3: [refractionChance, padding, padding, padding]
+    vec4 p3 = texelFetch(triangleMaterialTex, ivec2(3, triIndex), 0);
+    m.refractionChance = p3.x;
 
     return m;
 }
@@ -144,7 +161,7 @@ SphereMaterial loadSphereMaterial(int sphereIndex)
 {
     SphereMaterial m;
 
-    // Layout: width=3 pixels per row
+    // Layout: width=4 pixels per row
     // Pixel 0: [color.xyz, percentSpecular]
     vec4 p0 = texelFetch(sphereMaterialTex, ivec2(0, sphereIndex), 0);
     m.color = p0.xyz;
@@ -155,9 +172,14 @@ SphereMaterial loadSphereMaterial(int sphereIndex)
     m.emissive = p1.xyz;
     m.roughness = p1.w;
 
-    // Pixel 2: [specularColor.xyz, padding]
+    // Pixel 2: [specularColor.xyz, indexOfRefraction]
     vec4 p2 = texelFetch(sphereMaterialTex, ivec2(2, sphereIndex), 0);
     m.specularColor = p2.xyz;
+    m.indexOfRefraction = p2.w;
+
+    // Pixel 3: [refractionChance, padding, padding, padding]
+    vec4 p3 = texelFetch(sphereMaterialTex, ivec2(3, sphereIndex), 0);
+    m.refractionChance = p3.x;
 
     return m;
 }
@@ -182,7 +204,7 @@ PlaneMaterial loadPlaneMaterial(int planeIndex)
 {
     PlaneMaterial m;
 
-    // Layout: width=3 pixels per row
+    // Layout: width=4 pixels per row
     // Pixel 0: [color.xyz, percentSpecular]
     vec4 p0 = texelFetch(planeMaterialTex, ivec2(0, planeIndex), 0);
     m.color = p0.xyz;
@@ -193,9 +215,14 @@ PlaneMaterial loadPlaneMaterial(int planeIndex)
     m.emissive = p1.xyz;
     m.roughness = p1.w;
 
-    // Pixel 2: [specularColor.xyz, padding]
+    // Pixel 2: [specularColor.xyz, indexOfRefraction]
     vec4 p2 = texelFetch(planeMaterialTex, ivec2(2, planeIndex), 0);
     m.specularColor = p2.xyz;
+    m.indexOfRefraction = p2.w;
+
+    // Pixel 3: [refractionChance, padding, padding, padding]
+    vec4 p3 = texelFetch(planeMaterialTex, ivec2(3, planeIndex), 0);
+    m.refractionChance = p3.x;
 
     return m;
 }
@@ -209,17 +236,20 @@ const float c_superFar = 10000.0f;
 const float c_minimumRayHitTime = 0.1f;
 const int c_numRendersPerFrame = 5;
 
-bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in vec3 a, in vec3 b, in vec3 c, in vec3 precomputedNormal)
+bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info,
+    in vec3 a, in vec3 b, in vec3 c, in vec3 precomputedNormal)
 {
     float hit;
     vec3 barycentricCoord;
 
-    // Use precomputed normal (already normalized) - avoids cross product per ray
+    // Use precomputed normal (already normalized) - avoids cross product per
+    // ray
     vec3 e0 = b - a;
     vec3 e1 = a - c;
     vec3 triangleNormal = precomputedNormal;
 
-    // Unnormalized normal for intersection math (scale doesn't affect barycentric coords)
+    // Unnormalized normal for intersection math (scale doesn't affect
+    // barycentric coords)
     vec3 unnormalizedNormal = cross(e1, e0);
     float valueDot = 1.0 / dot(unnormalizedNormal, rayDir);
 
@@ -231,14 +261,14 @@ bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, i
     barycentricCoord.x = 1.0 - (barycentricCoord.z + barycentricCoord.y);
     hit = dot(unnormalizedNormal, e2);
 
-    bool hitTest = (hit > c_epsilon) && (barycentricCoord.x > 0 && barycentricCoord.y > 0 && barycentricCoord.z > 0);
+    bool hitTest = (hit > c_epsilon)
+        && (barycentricCoord.x > 0 && barycentricCoord.y > 0
+            && barycentricCoord.z > 0);
 
-    if (hitTest)
-    {
-        if (hit > c_minimumRayHitTime && hit < info.dist)
-        {
+    if (hitTest) {
+        if (hit > c_minimumRayHitTime && hit < info.dist) {
             info.dist = hit;
-            info.normal = triangleNormal;  // Already normalized from CPU
+            info.normal = triangleNormal; // Already normalized from CPU
             return true;
         }
     }
@@ -247,7 +277,8 @@ bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, i
 }
 
 // Ray-sphere intersection test
-bool TestSphereTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in vec3 center, in float radius)
+bool TestSphereTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info,
+    in vec3 center, in float radius)
 {
     vec3 oc = rayPos - center;
     float a = dot(rayDir, rayDir);
@@ -255,7 +286,9 @@ bool TestSphereTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in 
     float c = dot(oc, oc) - radius * radius;
     float discriminant = b * b - 4.0 * a * c;
 
-    if (discriminant < 0.0) return false;
+    if (discriminant < 0.0) {
+        return false;
+    }
 
     float sqrtDisc = sqrt(discriminant);
     float t = (-b - sqrtDisc) / (2.0 * a);
@@ -264,7 +297,9 @@ bool TestSphereTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in 
     if (t < c_minimumRayHitTime || t >= info.dist) {
         // Try second intersection
         t = (-b + sqrtDisc) / (2.0 * a);
-        if (t < c_minimumRayHitTime || t >= info.dist) return false;
+        if (t < c_minimumRayHitTime || t >= info.dist) {
+            return false;
+        }
     }
 
     info.dist = t;
@@ -274,16 +309,21 @@ bool TestSphereTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in 
 }
 
 // Ray-plane intersection test (infinite plane)
-bool TestPlaneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in vec3 point, in vec3 normal)
+bool TestPlaneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info,
+    in vec3 point, in vec3 normal)
 {
     float denom = dot(normal, rayDir);
 
     // Check if ray is parallel to plane
-    if (abs(denom) < c_epsilon) return false;
+    if (abs(denom) < c_epsilon) {
+        return false;
+    }
 
     float t = dot(point - rayPos, normal) / denom;
 
-    if (t < c_minimumRayHitTime || t >= info.dist) return false;
+    if (t < c_minimumRayHitTime || t >= info.dist) {
+        return false;
+    }
 
     info.dist = t;
     // Return normal facing the ray
@@ -311,12 +351,10 @@ vec3 RandomUnitVector(inout uint state)
     // Rejection sampling - avoids expensive sin/cos/sqrt
     vec3 p;
     float lenSq;
-    for (int i = 0; i < 5; ++i) {  // Statistically sufficient iterations
-        p = vec3(
+    for (int i = 0; i < 5; ++i) { // Statistically sufficient iterations
+        p = vec3(RandomFloat01(state) * 2.0f - 1.0f,
             RandomFloat01(state) * 2.0f - 1.0f,
-            RandomFloat01(state) * 2.0f - 1.0f,
-            RandomFloat01(state) * 2.0f - 1.0f
-        );
+            RandomFloat01(state) * 2.0f - 1.0f);
         lenSq = dot(p, p);
         if (lenSq <= 1.0f && lenSq > 0.0001f) {
             break;
@@ -334,12 +372,8 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
     // Test triangles
     for (int triIndex = 0; triIndex < numTriangles; ++triIndex) {
         TriangleGeom geom = loadTriangleGeom(triIndex);
-        if (TestTriangleTrace(rayPos, rayDir, hitInfo,
-              geom.v0,
-              geom.v1,
-              geom.v2,
-              geom.normal))
-        {
+        if (TestTriangleTrace(rayPos, rayDir, hitInfo, geom.v0, geom.v1,
+                geom.v2, geom.normal)) {
             closestPrimitiveType = 0;
             closestIndex = triIndex;
         }
@@ -348,8 +382,8 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
     // Test spheres
     for (int sphereIndex = 0; sphereIndex < numSpheres; ++sphereIndex) {
         SphereGeom geom = loadSphereGeom(sphereIndex);
-        if (TestSphereTrace(rayPos, rayDir, hitInfo, geom.center, geom.radius))
-        {
+        if (TestSphereTrace(
+                rayPos, rayDir, hitInfo, geom.center, geom.radius)) {
             closestPrimitiveType = 1;
             closestIndex = sphereIndex;
         }
@@ -358,8 +392,7 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
     // Test planes
     for (int planeIndex = 0; planeIndex < numPlanes; ++planeIndex) {
         PlaneGeom geom = loadPlaneGeom(planeIndex);
-        if (TestPlaneTrace(rayPos, rayDir, hitInfo, geom.point, geom.normal))
-        {
+        if (TestPlaneTrace(rayPos, rayDir, hitInfo, geom.point, geom.normal)) {
             closestPrimitiveType = 2;
             closestIndex = planeIndex;
         }
@@ -375,6 +408,8 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
             hitInfo.material.percentSpecular = mat.percentSpecular;
             hitInfo.material.roughness = mat.roughness;
             hitInfo.material.specularColor = mat.specularColor;
+            hitInfo.material.indexOfRefraction = mat.indexOfRefraction;
+            hitInfo.material.refractionChance = mat.refractionChance;
         } else if (closestPrimitiveType == 1) {
             // Sphere
             SphereMaterial mat = loadSphereMaterial(closestIndex);
@@ -383,6 +418,8 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
             hitInfo.material.percentSpecular = mat.percentSpecular;
             hitInfo.material.roughness = mat.roughness;
             hitInfo.material.specularColor = mat.specularColor;
+            hitInfo.material.indexOfRefraction = mat.indexOfRefraction;
+            hitInfo.material.refractionChance = mat.refractionChance;
         } else if (closestPrimitiveType == 2) {
             // Plane
             PlaneMaterial mat = loadPlaneMaterial(closestIndex);
@@ -391,48 +428,130 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
             hitInfo.material.percentSpecular = mat.percentSpecular;
             hitInfo.material.roughness = mat.roughness;
             hitInfo.material.specularColor = mat.specularColor;
+            hitInfo.material.indexOfRefraction = mat.indexOfRefraction;
+            hitInfo.material.refractionChance = mat.refractionChance;
         }
     }
 }
 
-vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngState)
+// Fresnel-Schlick approximation for reflectance
+float FresnelSchlick(float cosTheta, float ior1, float ior2)
+{
+    float r0 = (ior1 - ior2) / (ior1 + ior2);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 GetColorForRay(
+    in vec3 startRayPos, in vec3 startRayDir, inout uint rngState)
 {
     // initialize
     vec3 ret = vec3(0.0f, 0.0f, 0.0f);
     vec3 throughput = vec3(1.0f, 1.0f, 1.0f);
     vec3 rayPos = startRayPos;
     vec3 rayDir = startRayDir;
+    float currentIOR = 1.0; // Start in air
 
-    for (int bounceIndex = 0; bounceIndex <= c_numBounces; ++bounceIndex)
-    {
+    for (int bounceIndex = 0; bounceIndex <= c_numBounces; ++bounceIndex) {
         // shoot a ray out into the world
         SRayHitInfo hitInfo;
         hitInfo.dist = c_superFar;
         TestSceneTrace(rayPos, rayDir, hitInfo);
 
         // if the ray missed, we are done
-        if (hitInfo.dist == c_superFar)
+        if (hitInfo.dist == c_superFar) {
             break;
-
-        // update the ray position
-        rayPos = (rayPos + rayDir * hitInfo.dist) + hitInfo.normal * c_rayPosNormalNudge;
-
-        // calculate whether we are going to do a diffuse or specular reflection ray
-        bool isSpecular = RandomFloat01(rngState) < hitInfo.material.percentSpecular;
-
-        vec3 diffuseRayDir = normalize(hitInfo.normal + RandomUnitVector(rngState));
-        vec3 specularRayDir = reflect(rayDir, hitInfo.normal);
-        specularRayDir = normalize(mix(specularRayDir, diffuseRayDir, hitInfo.material.roughness * hitInfo.material.roughness));
-        rayDir = isSpecular ? specularRayDir : diffuseRayDir;
+        }
 
         // add in emissive lighting
         ret += hitInfo.material.emissive * throughput;
 
-        // update the colorMultiplier (ternary instead of mix for 0/1 case)
-        throughput *= isSpecular ? hitInfo.material.specularColor : hitInfo.material.albedo;
+        // Check if this material is refractive
+        bool isRefractive = hitInfo.material.refractionChance > 0.0
+            && hitInfo.material.indexOfRefraction > 1.0;
+
+        if (isRefractive) {
+            // Determine if we're entering or exiting the material
+            bool entering = dot(rayDir, hitInfo.normal) < 0.0;
+            vec3 normal = entering ? hitInfo.normal : -hitInfo.normal;
+
+            float n1
+                = entering ? currentIOR : hitInfo.material.indexOfRefraction;
+            float n2 = entering ? hitInfo.material.indexOfRefraction : 1.0;
+            float eta = n1 / n2;
+
+            float cosTheta = abs(dot(-rayDir, normal));
+            float sinTheta2 = eta * eta * (1.0 - cosTheta * cosTheta);
+
+            // Calculate Fresnel reflectance
+            float reflectance = FresnelSchlick(cosTheta, n1, n2);
+
+            // Check for total internal reflection
+            bool totalInternalReflection = sinTheta2 > 1.0;
+
+            // Decide: reflect, refract, or diffuse
+            float rand = RandomFloat01(rngState);
+            float refractionProb
+                = hitInfo.material.refractionChance * (1.0 - reflectance);
+
+            if (totalInternalReflection || rand > refractionProb) {
+                // Reflect (including specular and diffuse)
+                float specularChance = hitInfo.material.percentSpecular;
+                bool isSpecular = RandomFloat01(rngState) < specularChance;
+
+                vec3 diffuseRayDir
+                    = normalize(normal + RandomUnitVector(rngState));
+                vec3 specularRayDir = reflect(rayDir, normal);
+                specularRayDir = normalize(mix(specularRayDir, diffuseRayDir,
+                    hitInfo.material.roughness * hitInfo.material.roughness));
+
+                rayPos = (rayPos + rayDir * hitInfo.dist)
+                    + normal * c_rayPosNormalNudge;
+                rayDir = isSpecular ? specularRayDir : diffuseRayDir;
+                throughput *= isSpecular ? hitInfo.material.specularColor
+                                         : hitInfo.material.albedo;
+            } else {
+                // Refract using Snell's law
+                vec3 refractDir = eta * rayDir
+                    + (eta * cosTheta - sqrt(max(0.0, 1.0 - sinTheta2)))
+                        * normal;
+                refractDir = normalize(refractDir);
+
+                // Move ray position through the surface
+                rayPos = (rayPos + rayDir * hitInfo.dist)
+                    - normal * c_rayPosNormalNudge;
+                rayDir = refractDir;
+
+                // Update current IOR for next intersection
+                currentIOR
+                    = entering ? hitInfo.material.indexOfRefraction : 1.0;
+
+                // Glass typically doesn't absorb much light (use albedo for
+                // tinted glass)
+                throughput *= hitInfo.material.albedo;
+            }
+        } else {
+            // Non-refractive material: original diffuse/specular logic
+            rayPos = (rayPos + rayDir * hitInfo.dist)
+                + hitInfo.normal * c_rayPosNormalNudge;
+
+            bool isSpecular
+                = RandomFloat01(rngState) < hitInfo.material.percentSpecular;
+
+            vec3 diffuseRayDir
+                = normalize(hitInfo.normal + RandomUnitVector(rngState));
+            vec3 specularRayDir = reflect(rayDir, hitInfo.normal);
+            specularRayDir = normalize(mix(specularRayDir, diffuseRayDir,
+                hitInfo.material.roughness * hitInfo.material.roughness));
+            rayDir = isSpecular ? specularRayDir : diffuseRayDir;
+
+            throughput *= isSpecular ? hitInfo.material.specularColor
+                                     : hitInfo.material.albedo;
+        }
 
         // Russian Roulette: terminate rays with negligible contribution
-        float maxThroughput = max(throughput.r, max(throughput.g, throughput.b));
+        float maxThroughput
+            = max(throughput.r, max(throughput.g, throughput.b));
         if (maxThroughput < 0.01) {
             break;
         }
@@ -445,7 +564,8 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
 void main()
 {
     vec2 pixelCoord = (vec2(FragPos.x, FragPos.y) + 1.0) * 1000;
-    uint rngState = uint(pixelCoord.x) * uint(1973) + uint(pixelCoord.y) * uint(9277) + uint(iFrame) * uint(26699);
+    uint rngState = uint(pixelCoord.x) * uint(1973)
+        + uint(pixelCoord.y) * uint(9277) + uint(iFrame) * uint(26699);
     rngState = rngState | uint(1);
 
     vec3 rayPosition = viewPos;
@@ -454,7 +574,8 @@ void main()
     vec3 currentColor = vec3(0.0);
     for (int i = 0; i < c_numRendersPerFrame; ++i) {
         // Add sub-pixel jitter for anti-aliasing
-        vec2 jitter = vec2(RandomFloat01(rngState), RandomFloat01(rngState)) - 0.5;
+        vec2 jitter
+            = vec2(RandomFloat01(rngState), RandomFloat01(rngState)) - 0.5;
         vec2 pixelSize = 2.0 / vec2(textureSize(previousFrame, 0));
         vec2 jitteredPos = vec2(FragPos.x, FragPos.y) + jitter * pixelSize;
 
@@ -473,7 +594,8 @@ void main()
         accumulatedColor = currentColor;
     } else {
         vec3 previousColor = texture(previousFrame, uv).rgb;
-        float weight = float(c_numRendersPerFrame) / float(iFrame * c_numRendersPerFrame + c_numRendersPerFrame);
+        float weight = float(c_numRendersPerFrame)
+            / float(iFrame * c_numRendersPerFrame + c_numRendersPerFrame);
         accumulatedColor = mix(previousColor, currentColor, weight);
     }
 

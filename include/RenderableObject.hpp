@@ -37,6 +37,9 @@ protected:
     float m_roughness = 0.5f;
     glm::vec3 m_specularColor = glm::vec3(1.0f);
 
+    float m_indexOfRefraction = 1.0f;
+    float m_refractionChance = 0.0f;
+
     PrimitiveType m_primitiveType = PrimitiveType::Mesh;
     float m_sphereRadius = 0.5f;
     glm::vec3 m_planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -104,6 +107,20 @@ public:
     [[nodiscard]] glm::vec3 getSpecularColor() const
     {
         return m_specularColor;
+    }
+
+    void setIndexOfRefraction(float ior) { m_indexOfRefraction = ior; }
+
+    [[nodiscard]] float getIndexOfRefraction() const
+    {
+        return m_indexOfRefraction;
+    }
+
+    void setRefractionChance(float chance) { m_refractionChance = chance; }
+
+    [[nodiscard]] float getRefractionChance() const
+    {
+        return m_refractionChance;
     }
 
     void setPrimitiveType(PrimitiveType type) { m_primitiveType = type; }

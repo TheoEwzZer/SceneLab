@@ -24,6 +24,8 @@ struct Triangle {
     float percentSpecular;
     float roughness;
     glm::vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 struct AnalyticalSphereData {
@@ -34,6 +36,8 @@ struct AnalyticalSphereData {
     float percentSpecular;
     float roughness;
     glm::vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 struct AnalyticalPlaneData {
@@ -44,6 +48,8 @@ struct AnalyticalPlaneData {
     float percentSpecular;
     float roughness;
     glm::vec3 specularColor;
+    float indexOfRefraction;
+    float refractionChance;
 };
 
 class PathTracingRenderer : public IRenderer {

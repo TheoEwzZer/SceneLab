@@ -91,11 +91,12 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Create material texture (width=3: color, emissive, specular)
+    // Create material texture (width=4: color, emissive, specular+ior,
+    // refraction)
     glGenTextures(1, &m_triangleMaterialTexture);
     glBindTexture(GL_TEXTURE_2D, m_triangleMaterialTexture);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA32F, 3, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 4, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -111,11 +112,12 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Create sphere material texture (width=3: color, emissive, specular)
+    // Create sphere material texture (width=4: color, emissive, specular+ior,
+    // refraction)
     glGenTextures(1, &m_sphereMaterialTexture);
     glBindTexture(GL_TEXTURE_2D, m_sphereMaterialTexture);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA32F, 3, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 4, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -131,11 +133,12 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Create plane material texture (width=3: color, emissive, specular)
+    // Create plane material texture (width=4: color, emissive, specular+ior,
+    // refraction)
     glGenTextures(1, &m_planeMaterialTexture);
     glBindTexture(GL_TEXTURE_2D, m_planeMaterialTexture);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA32F, 3, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 4, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1013,6 +1016,8 @@ void PathTracingRenderer::rebuildTriangleArray()
         float percentSpecular = objData.renderObject->getPercentSpecular();
         float roughness = objData.renderObject->getRoughness();
         glm::vec3 specularColor = objData.renderObject->getSpecularColor();
+        float indexOfRefraction = objData.renderObject->getIndexOfRefraction();
+        float refractionChance = objData.renderObject->getRefractionChance();
 
         if (primType == PrimitiveType::Sphere) {
             // Extract sphere center from transform matrix
@@ -1035,6 +1040,8 @@ void PathTracingRenderer::rebuildTriangleArray()
             s.percentSpecular = percentSpecular;
             s.roughness = roughness;
             s.specularColor = specularColor;
+            s.indexOfRefraction = indexOfRefraction;
+            s.refractionChance = refractionChance;
             m_spheres.push_back(s);
 
             objData.triangleStartIndex = 0;
@@ -1058,6 +1065,8 @@ void PathTracingRenderer::rebuildTriangleArray()
             p.percentSpecular = percentSpecular;
             p.roughness = roughness;
             p.specularColor = specularColor;
+            p.indexOfRefraction = indexOfRefraction;
+            p.refractionChance = refractionChance;
             m_planes.push_back(p);
 
             objData.triangleStartIndex = 0;
@@ -1103,6 +1112,8 @@ void PathTracingRenderer::rebuildTriangleArray()
                 t.percentSpecular = percentSpecular;
                 t.roughness = roughness;
                 t.specularColor = specularColor;
+                t.indexOfRefraction = indexOfRefraction;
+                t.refractionChance = refractionChance;
 
                 m_triangles.push_back(t);
             }
@@ -1114,12 +1125,12 @@ void PathTracingRenderer::rebuildTriangleArray()
 
     // Create separate geometry and material texture data
     // Geometry texture (width=3): v0, v1, v2, normal - used for all
-    // intersection tests Material texture (width=3): color, emissive, specular
-    // - only for closest hit
+    // intersection tests Material texture (width=4): color, emissive,
+    // specular+ior, refraction - only for closest hit
     std::vector<float> geomData;
     std::vector<float> materialData;
     geomData.reserve(m_triangles.size() * 3 * 4);
-    materialData.reserve(m_triangles.size() * 3 * 4);
+    materialData.reserve(m_triangles.size() * 4 * 4);
 
     for (const auto &t : m_triangles) {
         // Geometry texture: 3 pixels per triangle
@@ -1141,7 +1152,7 @@ void PathTracingRenderer::rebuildTriangleArray()
         geomData.push_back(t.normal.y);
         geomData.push_back(t.normal.z);
 
-        // Material texture: 3 pixels per triangle
+        // Material texture: 4 pixels per triangle
         // Pixel 0: [color.xyz, percentSpecular]
         materialData.push_back(t.color.x);
         materialData.push_back(t.color.y);
@@ -1154,10 +1165,16 @@ void PathTracingRenderer::rebuildTriangleArray()
         materialData.push_back(t.emissive.z);
         materialData.push_back(t.roughness);
 
-        // Pixel 2: [specularColor.xyz, padding]
+        // Pixel 2: [specularColor.xyz, indexOfRefraction]
         materialData.push_back(t.specularColor.x);
         materialData.push_back(t.specularColor.y);
         materialData.push_back(t.specularColor.z);
+        materialData.push_back(t.indexOfRefraction);
+
+        // Pixel 3: [refractionChance, padding, padding, padding]
+        materialData.push_back(t.refractionChance);
+        materialData.push_back(0.0f);
+        materialData.push_back(0.0f);
         materialData.push_back(0.0f);
     }
 
@@ -1174,14 +1191,14 @@ void PathTracingRenderer::rebuildTriangleArray()
             geomData.data());
     }
 
-    // Upload material texture
+    // Upload material texture (width=4)
     glBindTexture(GL_TEXTURE_2D, m_triangleMaterialTexture);
     if (needsReallocation) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 3, height, 0, GL_RGBA,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, height, 0, GL_RGBA,
             GL_FLOAT, materialData.empty() ? nullptr : materialData.data());
         m_lastTriangleTextureHeight = height;
     } else if (!materialData.empty()) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 3, height, GL_RGBA, GL_FLOAT,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, height, GL_RGBA, GL_FLOAT,
             materialData.data());
     }
 
@@ -1189,7 +1206,7 @@ void PathTracingRenderer::rebuildTriangleArray()
     std::vector<float> sphereGeomData;
     std::vector<float> sphereMaterialData;
     sphereGeomData.reserve(m_spheres.size() * 4);
-    sphereMaterialData.reserve(m_spheres.size() * 3 * 4);
+    sphereMaterialData.reserve(m_spheres.size() * 4 * 4);
 
     for (const auto &s : m_spheres) {
         // Geometry: 1 pixel per sphere [center.xyz, radius]
@@ -1198,7 +1215,7 @@ void PathTracingRenderer::rebuildTriangleArray()
         sphereGeomData.push_back(s.center.z);
         sphereGeomData.push_back(s.radius);
 
-        // Material: 3 pixels per sphere
+        // Material: 4 pixels per sphere
         // Pixel 0: [color.xyz, percentSpecular]
         sphereMaterialData.push_back(s.color.x);
         sphereMaterialData.push_back(s.color.y);
@@ -1211,10 +1228,16 @@ void PathTracingRenderer::rebuildTriangleArray()
         sphereMaterialData.push_back(s.emissive.z);
         sphereMaterialData.push_back(s.roughness);
 
-        // Pixel 2: [specularColor.xyz, padding]
+        // Pixel 2: [specularColor.xyz, indexOfRefraction]
         sphereMaterialData.push_back(s.specularColor.x);
         sphereMaterialData.push_back(s.specularColor.y);
         sphereMaterialData.push_back(s.specularColor.z);
+        sphereMaterialData.push_back(s.indexOfRefraction);
+
+        // Pixel 3: [refractionChance, padding, padding, padding]
+        sphereMaterialData.push_back(s.refractionChance);
+        sphereMaterialData.push_back(0.0f);
+        sphereMaterialData.push_back(0.0f);
         sphereMaterialData.push_back(0.0f);
     }
 
@@ -1232,15 +1255,15 @@ void PathTracingRenderer::rebuildTriangleArray()
             GL_FLOAT, sphereGeomData.data());
     }
 
-    // Upload sphere material texture
+    // Upload sphere material texture (width=4)
     glBindTexture(GL_TEXTURE_2D, m_sphereMaterialTexture);
     if (sphereNeedsRealloc) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 3, sphereHeight, 0, GL_RGBA,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, sphereHeight, 0, GL_RGBA,
             GL_FLOAT,
             sphereMaterialData.empty() ? nullptr : sphereMaterialData.data());
         m_lastSphereTextureHeight = sphereHeight;
     } else if (!sphereMaterialData.empty()) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 3, sphereHeight, GL_RGBA,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, sphereHeight, GL_RGBA,
             GL_FLOAT, sphereMaterialData.data());
     }
 
@@ -1248,7 +1271,7 @@ void PathTracingRenderer::rebuildTriangleArray()
     std::vector<float> planeGeomData;
     std::vector<float> planeMaterialData;
     planeGeomData.reserve(m_planes.size() * 2 * 4);
-    planeMaterialData.reserve(m_planes.size() * 3 * 4);
+    planeMaterialData.reserve(m_planes.size() * 4 * 4);
 
     for (const auto &p : m_planes) {
         // Geometry: 2 pixels per plane
@@ -1264,7 +1287,7 @@ void PathTracingRenderer::rebuildTriangleArray()
         planeGeomData.push_back(0.0f);
         planeGeomData.push_back(0.0f);
 
-        // Material: 3 pixels per plane
+        // Material: 4 pixels per plane
         // Pixel 0: [color.xyz, percentSpecular]
         planeMaterialData.push_back(p.color.x);
         planeMaterialData.push_back(p.color.y);
@@ -1277,10 +1300,16 @@ void PathTracingRenderer::rebuildTriangleArray()
         planeMaterialData.push_back(p.emissive.z);
         planeMaterialData.push_back(p.roughness);
 
-        // Pixel 2: [specularColor.xyz, padding]
+        // Pixel 2: [specularColor.xyz, indexOfRefraction]
         planeMaterialData.push_back(p.specularColor.x);
         planeMaterialData.push_back(p.specularColor.y);
         planeMaterialData.push_back(p.specularColor.z);
+        planeMaterialData.push_back(p.indexOfRefraction);
+
+        // Pixel 3: [refractionChance, padding, padding, padding]
+        planeMaterialData.push_back(p.refractionChance);
+        planeMaterialData.push_back(0.0f);
+        planeMaterialData.push_back(0.0f);
         planeMaterialData.push_back(0.0f);
     }
 
@@ -1297,15 +1326,15 @@ void PathTracingRenderer::rebuildTriangleArray()
             GL_FLOAT, planeGeomData.data());
     }
 
-    // Upload plane material texture
+    // Upload plane material texture (width=4)
     glBindTexture(GL_TEXTURE_2D, m_planeMaterialTexture);
     if (planeNeedsRealloc) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 3, planeHeight, 0, GL_RGBA,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, planeHeight, 0, GL_RGBA,
             GL_FLOAT,
             planeMaterialData.empty() ? nullptr : planeMaterialData.data());
         m_lastPlaneTextureHeight = planeHeight;
     } else if (!planeMaterialData.empty()) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 3, planeHeight, GL_RGBA,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, planeHeight, GL_RGBA,
             GL_FLOAT, planeMaterialData.data());
     }
 
