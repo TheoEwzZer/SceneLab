@@ -7,6 +7,7 @@
 #include "ShaderProgram.hpp"
 #include "renderer/TextureLibrary.hpp"
 #include "renderer/implementation/RasterizationRenderer.hpp"
+#include "renderer/BVH.hpp"
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -79,6 +80,13 @@ private:
     GLuint m_planeGeomTexture = 0;
     GLuint m_planeMaterialTexture = 0;
     int m_lastPlaneTextureHeight = 0;
+
+    // BVH acceleration structure
+    BVH m_bvh;
+    GLuint m_bvhNodeTexture = 0;
+    GLuint m_bvhPrimTexture = 0; // Primitive type + index for each BVH leaf
+    int m_lastBVHTextureHeight = 0;
+    int m_lastBVHPrimTextureHeight = 0;
 
     struct ObjectData {
         std::unique_ptr<RenderableObject> renderObject;

@@ -8,6 +8,7 @@
 #include "renderer/interface/IRenderer.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -145,6 +146,26 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+    // Create BVH node texture (width=2: min+leftChild, max+rightChild/data)
+    glGenTextures(1, &m_bvhNodeTexture);
+    glBindTexture(GL_TEXTURE_2D, m_bvhNodeTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 2, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // Create BVH primitive texture (width=1: type+originalIndex)
+    glGenTextures(1, &m_bvhPrimTexture);
+    glBindTexture(GL_TEXTURE_2D, m_bvhPrimTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
     m_pathTracingShader.use();
     m_pathTracingShader.setInt("triangleGeomTex", 1);
     m_pathTracingShader.setInt("triangleMaterialTex", 2);
@@ -155,6 +176,9 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
     m_pathTracingShader.setInt("planeGeomTex", 5);
     m_pathTracingShader.setInt("planeMaterialTex", 6);
     m_pathTracingShader.setInt("numPlanes", 0);
+    m_pathTracingShader.setInt("bvhNodeTex", 7);
+    m_pathTracingShader.setInt("bvhPrimTex", 8);
+    m_pathTracingShader.setInt("numBVHNodes", 0);
 }
 
 PathTracingRenderer::~PathTracingRenderer()
@@ -177,6 +201,12 @@ PathTracingRenderer::~PathTracingRenderer()
     }
     if (m_planeMaterialTexture != 0) {
         glDeleteTextures(1, &m_planeMaterialTexture);
+    }
+    if (m_bvhNodeTexture != 0) {
+        glDeleteTextures(1, &m_bvhNodeTexture);
+    }
+    if (m_bvhPrimTexture != 0) {
+        glDeleteTextures(1, &m_bvhPrimTexture);
     }
 }
 
@@ -709,11 +739,22 @@ void PathTracingRenderer::renderCameraViews(
     glBindTexture(GL_TEXTURE_2D, m_planeMaterialTexture);
     m_pathTracingShader.setInt("planeMaterialTex", 6);
 
+    // Bind BVH node texture to texture unit 7
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D, m_bvhNodeTexture);
+    m_pathTracingShader.setInt("bvhNodeTex", 7);
+
+    // Bind BVH primitive texture to texture unit 8
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, m_bvhPrimTexture);
+    m_pathTracingShader.setInt("bvhPrimTex", 8);
+
     m_pathTracingShader.setInt(
         "numTriangles", static_cast<int>(m_triangles.size()));
     m_pathTracingShader.setInt(
         "numSpheres", static_cast<int>(m_spheres.size()));
     m_pathTracingShader.setInt("numPlanes", static_cast<int>(m_planes.size()));
+    m_pathTracingShader.setInt("numBVHNodes", m_bvh.getNodeCount());
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1181,6 +1222,14 @@ void PathTracingRenderer::rebuildTriangleArray()
         }
     }
 
+    // Build BVH acceleration structure for triangles AND spheres
+    // This will reorder m_triangles and m_spheres according to BVH leaf order
+    if (!m_triangles.empty() || !m_spheres.empty()) {
+        m_bvh.build(m_triangles, m_spheres);
+    } else {
+        m_bvh.clear();
+    }
+
     // Create separate geometry and material texture data
     // Geometry texture (width=3): v0, v1, v2, normal - used for all
     // intersection tests Material texture (width=4): color, emissive,
@@ -1396,6 +1445,91 @@ void PathTracingRenderer::rebuildTriangleArray()
             GL_FLOAT, planeMaterialData.data());
     }
 
+    // Build BVH node texture data
+    // Format: 2 pixels per node
+    // Pixel 0: [bounds.min.xyz, intBitsToFloat(leftChild)]
+    // Pixel 1: [bounds.max.xyz, intBitsToFloat(packed_data)]
+    // For leaves: packed_data = primStart | (primCount << 16)
+    // For internal: packed_data = rightChild
+    std::vector<float> bvhData;
+    const auto &bvhNodes = m_bvh.getNodes();
+    bvhData.reserve(bvhNodes.size() * 2 * 4);
+
+    for (const auto &node : bvhNodes) {
+        // Pixel 0: [bounds.min.xyz, leftChild as float bits]
+        bvhData.push_back(node.bounds.min.x);
+        bvhData.push_back(node.bounds.min.y);
+        bvhData.push_back(node.bounds.min.z);
+        float leftChildFloat;
+        std::memcpy(&leftChildFloat, &node.leftChild, sizeof(float));
+        bvhData.push_back(leftChildFloat);
+
+        // Pixel 1: [bounds.max.xyz, packed_data as float bits]
+        bvhData.push_back(node.bounds.max.x);
+        bvhData.push_back(node.bounds.max.y);
+        bvhData.push_back(node.bounds.max.z);
+
+        int packedData;
+        if (node.isLeaf()) {
+            // Pack primStart and primCount: primStart in lower 16 bits,
+            // primCount in upper 16
+            packedData = (node.primitiveStart & 0xFFFF)
+                | ((node.primitiveCount & 0xFFFF) << 16);
+        } else {
+            packedData = node.rightChild;
+        }
+        float packedFloat;
+        std::memcpy(&packedFloat, &packedData, sizeof(float));
+        bvhData.push_back(packedFloat);
+    }
+
+    int bvhHeight = std::max(1, static_cast<int>(bvhNodes.size()));
+    bool bvhNeedsRealloc = (bvhHeight != m_lastBVHTextureHeight);
+
+    // Upload BVH node texture
+    glBindTexture(GL_TEXTURE_2D, m_bvhNodeTexture);
+    if (bvhNeedsRealloc) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 2, bvhHeight, 0, GL_RGBA,
+            GL_FLOAT, bvhData.empty() ? nullptr : bvhData.data());
+        m_lastBVHTextureHeight = bvhHeight;
+    } else if (!bvhData.empty()) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2, bvhHeight, GL_RGBA,
+            GL_FLOAT, bvhData.data());
+    }
+
+    // Build BVH primitive texture data
+    // Format: 1 pixel per primitive [type, originalIndex, 0, 0]
+    std::vector<float> bvhPrimData;
+    const auto &bvhPrimitives = m_bvh.getPrimitives();
+    bvhPrimData.reserve(bvhPrimitives.size() * 4);
+
+    for (const auto &prim : bvhPrimitives) {
+        // Pixel: [type as float, originalIndex as float bits, 0, 0]
+        bvhPrimData.push_back(
+            static_cast<float>(static_cast<int>(prim.type))); // 0=triangle,
+                                                              // 1=sphere
+        float indexFloat;
+        std::memcpy(&indexFloat, &prim.originalIndex, sizeof(float));
+        bvhPrimData.push_back(indexFloat);
+        bvhPrimData.push_back(0.0f);
+        bvhPrimData.push_back(0.0f);
+    }
+
+    int bvhPrimHeight = std::max(1, static_cast<int>(bvhPrimitives.size()));
+    bool bvhPrimNeedsRealloc = (bvhPrimHeight != m_lastBVHPrimTextureHeight);
+
+    // Upload BVH primitive texture
+    glBindTexture(GL_TEXTURE_2D, m_bvhPrimTexture);
+    if (bvhPrimNeedsRealloc) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, bvhPrimHeight, 0,
+            GL_RGBA, GL_FLOAT,
+            bvhPrimData.empty() ? nullptr : bvhPrimData.data());
+        m_lastBVHPrimTextureHeight = bvhPrimHeight;
+    } else if (!bvhPrimData.empty()) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, bvhPrimHeight, GL_RGBA,
+            GL_FLOAT, bvhPrimData.data());
+    }
+
     m_pathTracingShader.use();
     m_pathTracingShader.setInt("triangleGeomTex", 1);
     m_pathTracingShader.setInt("triangleMaterialTex", 2);
@@ -1408,6 +1542,9 @@ void PathTracingRenderer::rebuildTriangleArray()
     m_pathTracingShader.setInt("planeGeomTex", 5);
     m_pathTracingShader.setInt("planeMaterialTex", 6);
     m_pathTracingShader.setInt("numPlanes", static_cast<int>(m_planes.size()));
+    m_pathTracingShader.setInt("bvhNodeTex", 7);
+    m_pathTracingShader.setInt("bvhPrimTex", 8);
+    m_pathTracingShader.setInt("numBVHNodes", m_bvh.getNodeCount());
 }
 
 void PathTracingRenderer::setToneMappingMode(ToneMappingMode mode)
