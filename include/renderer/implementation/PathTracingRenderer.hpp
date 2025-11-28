@@ -113,11 +113,7 @@ public:
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
 
-    void drawBoundingBox(int objectId, const glm::vec3 &corner1,
-        const glm::vec3 &corner2) override
-    {
-        return;
-    }
+    void drawBoundingBox(int, const glm::vec3 &, const glm::vec3 &) override {}
 
     std::vector<std::unique_ptr<RenderableObject>>
     extractAllObjects() override;
@@ -170,10 +166,7 @@ public:
     void renderAllViews(CameraManager &cameraManager) override;
     void setCameraOverlayCallback(CameraOverlayCallback callback) override;
 
-    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override
-    {
-        return;
-    }
+    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback) override {}
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);
     int createCheckerboardTexture(const std::string &name, int width,

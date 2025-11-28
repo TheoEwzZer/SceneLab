@@ -370,7 +370,7 @@ void PathTracingRenderer::beginFrame()
     ImGuizmo::SetRect(0, 0, 1920, 1080);
 }
 
-void PathTracingRenderer::drawAll(Camera cam) {}
+void PathTracingRenderer::drawAll(Camera) {}
 
 void PathTracingRenderer::endFrame()
 {

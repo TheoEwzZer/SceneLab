@@ -463,7 +463,7 @@ void RasterizationRenderer::drawSkybox() const
     glDepthFunc(GL_LESS);
 }
 
-void RasterizationRenderer::drawAll(Camera cam)
+void RasterizationRenderer::drawAll(Camera)
 {
     drawSkybox();
 
