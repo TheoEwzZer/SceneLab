@@ -11,7 +11,7 @@
 #include "GameObject.hpp"
 #include "CameraManager.hpp"
 
-class ARenderer;
+class IRenderer;
 struct GLFWwindow;
 
 class Image {
@@ -29,10 +29,9 @@ public:
     };
 
 private:
-    std::unique_ptr<ARenderer> &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
 
     SceneGraph &m_sceneGraph;
-
 
     const CameraManager &m_cameraManager;
 
@@ -54,8 +53,8 @@ private:
     void captureAndWriteCurrentFrame(GLFWwindow *window);
 
 public:
-    Image(std::unique_ptr<ARenderer> &renderer,
-        SceneGraph &sceneGraph, const CameraManager &cameraManager);
+    Image(std::unique_ptr<IRenderer> &renderer, SceneGraph &sceneGraph,
+        const CameraManager &cameraManager);
 
     ~Image() = default;
 
@@ -66,8 +65,10 @@ public:
         const std::string &path, double mouseX, double mouseY);
 
     // Callback invoked when a new image object is created
-    using OnImageObjectCreated = std::function<void(SceneGraph::Node*)>;
-    void setOnImageObjectCreatedCallback(OnImageObjectCreated callback) {
+    using OnImageObjectCreated = std::function<void(SceneGraph::Node *)>;
+
+    void setOnImageObjectCreatedCallback(OnImageObjectCreated callback)
+    {
         m_onImageObjectCreated = callback;
     }
 
@@ -77,7 +78,7 @@ public:
 
     void updateMessageTimer(float deltaTime);
 
-    void renderUI();
+    void renderUI(bool *p_open = nullptr);
 
     bool isExportInProgress() const;
 

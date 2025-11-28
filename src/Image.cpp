@@ -1,6 +1,6 @@
 #include "Image.hpp"
 #include "SceneGraph.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -18,13 +18,19 @@
 #include <glad/gl.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #include "stb_image_write.h"
+#pragma GCC diagnostic pop
 #include "stb_image.h"
 
 #include <random>
 #include <chrono>
 
-Image::Image(std::unique_ptr<ARenderer> &renderer, SceneGraph &sceneGraph,
+#include "objects/Object3D.hpp"
+
+Image::Image(std::unique_ptr<IRenderer> &renderer, SceneGraph &sceneGraph,
     const CameraManager &cameraManager) :
     m_renderer(renderer),
     m_sceneGraph(sceneGraph), m_cameraManager(cameraManager)
@@ -119,7 +125,7 @@ bool Image::addImageObjectAtScreenPos(
         // Create new object
         GameObject newObject;
         newObject.rendererId
-            = m_renderer->registerObject(quadVertices, {}, path, false);
+            = m_renderer->registerObject(std::make_unique<Object3D>(quadVertices, std::vector<unsigned int>{}), path);
 
         if (newObject.rendererId < 0) {
             setStatusMessage(
@@ -130,7 +136,7 @@ bool Image::addImageObjectAtScreenPos(
         newObject.setPosition(worldPos);
         // Set AABB for the image quad (default 1.0x1.0 size)
         newObject.setAABB(glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f));
-        
+
         std::unique_ptr<SceneGraph::Node> node = std::make_unique<SceneGraph::Node>();
         node->setData(newObject);
         m_sceneGraph.getRoot()->addChild(std::move(node));
@@ -467,9 +473,16 @@ void Image::captureAndWriteCurrentFrame(GLFWwindow *window)
     }
 }
 
-void Image::renderUI()
+void Image::renderUI(bool *p_open)
 {
-    ImGui::Begin("Image");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Image", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Image Import");
     ImGui::Text("Drag and drop image files into the window");
@@ -532,7 +545,7 @@ void Image::renderUI()
     }
 
     if (ImGui::Button("Add Color")) {
-        m_paletteColors.push_back(glm::vec4(1.0f));
+        m_paletteColors.emplace_back(1.0f);
     }
 
     ImGui::Separator();

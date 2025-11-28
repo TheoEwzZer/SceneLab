@@ -16,54 +16,56 @@
 #include "Camera.hpp"
 #include "SceneGraph.hpp"
 #include "CameraManager.hpp"
-#include "GeometryImguiWindow.hpp"
+#include "GeometryManager.hpp"
+#include "TransformManager.hpp"
+#include "CameraController.hpp"
 #include "Vectoriel.hpp"
 #include "Image.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "illumination/Illumination.hpp"
+#include "renderer/interface/IRenderer.hpp"
+#include "renderer/Window.hpp"
+#include "TextureManager.hpp"
 #include "imgui.h"
+
+class RasterizationRenderer;
+class TextureManager;
 
 class App {
 
-    bool wPressed = false;
-    bool sPressed = false;
-    bool aPressed = false;
-    bool dPressed = false;
-    bool spacePressed = false;
-    bool leftCtrlPressed = false;
     bool leftShiftPressed = false;
-    glm::vec2 m_currentMousePos;
-    bool firstMouse = false;
 
-    glm::vec2 mouseDelta { 0.0f };
-    glm::vec2 prevMousePos { 0.0f };
-
-    // selected objects (multiple selection support)
-    std::vector<SceneGraph::Node *> m_selectedNodes;
-
-    bool m_showAllBoundingBoxes { false };
+    // Menu bar state
+    bool m_showAboutPopup = false;
+    bool m_showGeometryWindow = true;
+    bool m_showTransformWindow = true;
+    bool m_showRayTracingWindow = true;
+    bool m_showTextureWindow = true;
+    bool m_showCameraWindow = true;
+    bool m_showImageWindow = true;
+    bool m_showVectorWindow = true;
+    bool m_showHierarchyWindow = true;
 
 private:
+    Window m_window;
     SceneGraph m_sceneGraph;
-
     CameraManager m_camera;
-    GeometryImguiWindow m_GeometryImguiWindow;
+
+    // Feature managers
+    std::unique_ptr<GeometryManager> m_geometryManager;
+    std::unique_ptr<TransformManager> m_transformManager;
+    std::unique_ptr<CameraController> m_cameraController;
+    std::unique_ptr<TextureManager> m_textureManager;
 
     void init();
     void update();
     void render();
-
-    void initGeometryWindow();
-    void selectedTransformUI();
+    void renderMainMenuBar();
     void updateCursor();
-    void resetAllCameraPoses();
-    void renderCameraGizmo(int cameraId, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize, bool isHovered);
-    void drawBoundingBoxes();
-    void deleteSelectedObjects();
+    void switchRenderer();
+    void resetScene();
 
     Vect::UIDrawer vectorial_ui;
-
-    // Helper function for multi-selection validation
-    bool canAddToSelection(SceneGraph::Node *nodeToAdd);
+    std::unique_ptr<Illumination::UIIllumination> illumination_ui;
 
 public:
     explicit App();
@@ -75,10 +77,6 @@ public:
     void run();
     GameObject &registerObject(GameObject &object);
 
-    std::unique_ptr<ARenderer> m_renderer;
+    std::unique_ptr<IRenderer> m_renderer;
     std::unique_ptr<Image> m_image;
-
-    // Current gizmo operation (for cursor state)
-    enum class GizmoOp { Translate = 0, Rotate = 1, Scale = 2 };
-    GizmoOp m_currentGizmoOperation = GizmoOp::Translate;
 };

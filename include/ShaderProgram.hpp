@@ -8,18 +8,22 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
+#define DEBUG_UNIFORMS 0
+
 class ShaderProgram {
 public:
-    void init(std::string vertexShaderPath, std::string fragmentShaderPath)
+    void init(const std::string &vertexShaderPath,
+        const std::string &fragmentShaderPath)
     {
         int success;
         char infoLog[512];
 
         // Vertex shader
-        std::string vertexShaderString = parseFileToString(vertexShaderPath);
+        const std::string vertexShaderString
+            = parseFileToString(vertexShaderPath);
         const char *vertexShaderSource = vertexShaderString.c_str();
 
-        unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+        const unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
         glCompileShader(vertexShader);
 
@@ -32,12 +36,11 @@ public:
         }
 
         // Fragment shader
-        std::string fragmentShaderString
+        const std::string fragmentShaderString
             = parseFileToString(fragmentShaderPath);
         const char *fragmentShaderSource = fragmentShaderString.c_str();
 
-        unsigned int fragmentShader;
-        fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+        const unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
         glCompileShader(fragmentShader);
 
@@ -68,30 +71,67 @@ public:
         glDeleteShader(fragmentShader);
     }
 
-    void use() { glUseProgram(m_shaderProgram); }
+    void use() const { glUseProgram(m_shaderProgram); }
 
-    void setVec3(std::string uniformName, glm::vec3 vec3)
+    void setVec3(const std::string &uniformName, const glm::vec3 vec3) const
     {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Uniform3f: " << uniformName << " = (" << vec3.x << "," << vec3.y << "," << vec3.z << ")" << std::endl;
+#endif
         glUniform3f(glGetUniformLocation(m_shaderProgram, uniformName.c_str()),
             vec3.x, vec3.y, vec3.z);
     }
 
-    void setVec2(std::string uniformName, glm::vec2 vec2)
+    void setVec2(const std::string &uniformName, const glm::vec2 vec2) const
     {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Uniform2f: " << uniformName << " = (" << vec2.x << "," << vec2.y << ")" << std::endl;
+#endif
         glUniform2f(glGetUniformLocation(m_shaderProgram, uniformName.c_str()),
             vec2.x, vec2.y);
     }
 
-    void setMat4(std::string uniformName, glm::mat4 mat4)
+    void setMat4(const std::string &uniformName, glm::mat4 mat4) const
     {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Mat4: " << uniformName << std::endl;
+#endif
         glUniformMatrix4fv(
             glGetUniformLocation(m_shaderProgram, uniformName.c_str()), 1,
             GL_FALSE, glm::value_ptr(mat4));
     }
 
-    void setBool(std::string uniformName, bool value)
+    void setMat3(const std::string &uniformName, glm::mat3 mat3) const
     {
+        glUniformMatrix3fv(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), 1,
+            GL_FALSE, glm::value_ptr(mat3));
+    }
+
+    void setBool(const std::string &uniformName, const bool value) const
+    {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Uniform1i: " << uniformName << " = " << value << std::endl;
+#endif
         glUniform1i(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
+    }
+
+    void setInt(const std::string &uniformName, const int value) const
+    {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Uniform1i: " << uniformName << " = " << value << std::endl;
+#endif
+        glUniform1i(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
+    }
+
+    void setFloat(const std::string &uniformName, const float value) const
+    {
+#if DEBUG_UNIFORMS == 1
+        std::cout << "Set Uniform1f: " << uniformName << " = " << value << std::endl;
+#endif
+        glUniform1f(
             glGetUniformLocation(m_shaderProgram, uniformName.c_str()), value);
     }
 

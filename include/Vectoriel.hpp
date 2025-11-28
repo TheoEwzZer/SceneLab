@@ -8,7 +8,7 @@
 #include <vector>
 #include "Vectoriel.hpp"
 #include "GameObject.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 
 class App;
 
@@ -233,14 +233,16 @@ public:
     /**
      * @brief Fonction de rendu de l'interface graphique.
      * @param app Pointeur sur l'application
+     * @param p_open Pointer to window open state (optional)
      */
-    void renderUI(App *app);
+    void renderUI(App *app, bool *p_open = nullptr);
 
     void setCurrentColorRGBA(const glm::vec4 &rgba, bool applyFill = true,
         bool applyOutline = true);
 
     // Expose current UI state for cursor management
     int getUIMode() const { return m_uiMode; }
+
     int getCurrentPrimitiveIndex() const { return m_currentPrimitiveIndex; }
 
 protected:
@@ -261,8 +263,8 @@ protected:
     int m_input_segments;
 
     // Persisted UI state
-    int m_uiMode = 0;                   // 0: Primitive, 1: Shape
-    int m_currentPrimitiveIndex = 0;    // index in primitives list
+    int m_uiMode = 0; // 0: Primitive, 1: Shape
+    int m_currentPrimitiveIndex = 0; // index in primitives list
 
     /**
      * @brief Fonction utilitaire qui instancie une primitive avec les valeurs

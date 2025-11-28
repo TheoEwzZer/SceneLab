@@ -7,6 +7,7 @@ void GameObject::setPosition(const glm::vec3 &pos)
     if (m_position != pos) {
         m_position = pos;
         m_transformDirty = true;
+        m_hasMoved = true;
     }
 }
 
@@ -15,6 +16,7 @@ void GameObject::setRotation(const glm::vec3 &rot)
     if (m_rotation != rot) {
         m_rotation = rot;
         m_transformDirty = true;
+        m_hasMoved = true;
     }
 }
 
@@ -23,6 +25,7 @@ void GameObject::setScale(const glm::vec3 &scale)
     if (m_scale != scale) {
         m_scale = scale;
         m_transformDirty = true;
+        m_hasMoved = true;
     }
 }
 
