@@ -8,7 +8,8 @@
 
 class Window {
 public:
-    Window(int width = 1920, int height = 1080, const std::string &title = "SceneLab");
+    Window(int width = 1920, int height = 1080,
+        const std::string &title = "SceneLab");
     ~Window();
 
     Window(const Window &) = delete;

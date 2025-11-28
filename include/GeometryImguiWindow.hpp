@@ -20,9 +20,12 @@ class GeometryImguiWindow {
 public:
     void render();
 
-    std::function<void(float radius, int sectors, int stacks, const MaterialProperties &mat)> onSpawnSphere;
+    std::function<void(
+        float radius, int sectors, int stacks, const MaterialProperties &mat)>
+        onSpawnSphere;
     std::function<void(float size, const MaterialProperties &mat)> onSpawnCube;
-    std::function<void(float radius, float height, int sectors, const MaterialProperties &mat)>
+    std::function<void(float radius, float height, int sectors,
+        const MaterialProperties &mat)>
         onSpawnCylinder;
     std::function<void(const std::string &objName, const std::string &objPath)>
         onLoadModel;

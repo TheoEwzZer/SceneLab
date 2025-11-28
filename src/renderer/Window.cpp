@@ -152,20 +152,11 @@ void Window::cleanupImGui()
     ImGui::DestroyContext();
 }
 
-bool Window::shouldClose() const
-{
-    return glfwWindowShouldClose(m_window);
-}
+bool Window::shouldClose() const { return glfwWindowShouldClose(m_window); }
 
-void Window::swapBuffers()
-{
-    glfwSwapBuffers(m_window);
-}
+void Window::swapBuffers() { glfwSwapBuffers(m_window); }
 
-void Window::pollEvents()
-{
-    glfwPollEvents();
-}
+void Window::pollEvents() { glfwPollEvents(); }
 
 void Window::addKeyCallback(
     int key, int action, std::function<void()> callback)

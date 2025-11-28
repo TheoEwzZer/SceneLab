@@ -23,8 +23,7 @@ constexpr glm::vec3 DEFAULT_LIGHT_COLOR { 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 DEFAULT_LIGHT_POS { 2.0f, 0.0f, 0.0f };
 }
 
-RasterizationRenderer::RasterizationRenderer(Window &window)
-    : m_window(window)
+RasterizationRenderer::RasterizationRenderer(Window &window) : m_window(window)
 {
 
     glEnable(GL_DEPTH_TEST);
@@ -688,9 +687,8 @@ void RasterizationRenderer::addCursorCallback(
     m_window.addCursorCallback(callback);
 }
 
-void RasterizationRenderer::addDropCallback(
-    std::function<void(const std::vector<std::string> &paths,
-        double mouseX, double mouseY)>
+void RasterizationRenderer::addDropCallback(std::function<void(
+        const std::vector<std::string> &paths, double mouseX, double mouseY)>
         callback)
 {
     m_window.addDropCallback(callback);
@@ -702,12 +700,14 @@ GLFWwindow *RasterizationRenderer::getWindow() const
 }
 
 // Camera view management methods
-void RasterizationRenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
+void RasterizationRenderer::setCameraOverlayCallback(
+    CameraOverlayCallback callback)
 {
     m_cameraOverlayCallback = std::move(callback);
 }
 
-void RasterizationRenderer::setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback)
+void RasterizationRenderer::setBoundingBoxDrawCallback(
+    BoundingBoxDrawCallback callback)
 {
     m_bboxDrawCallback = std::move(callback);
 }
@@ -727,7 +727,8 @@ void RasterizationRenderer::renderAllViews(CameraManager &cameraManager)
     }
 }
 
-void RasterizationRenderer::createCameraViews(const int id, int width, int height)
+void RasterizationRenderer::createCameraViews(
+    const int id, int width, int height)
 {
     if (!m_cameraViews.contains(id)) {
         CameraView view;
@@ -776,7 +777,8 @@ void RasterizationRenderer::destroyCameraViews(const int id)
     }
 }
 
-void RasterizationRenderer::renderCameraViews(const Camera &cam, const CameraView &view)
+void RasterizationRenderer::renderCameraViews(
+    const Camera &cam, const CameraView &view)
 {
     // Save current state
     GLint previousFBO;

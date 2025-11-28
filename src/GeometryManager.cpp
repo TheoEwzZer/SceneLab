@@ -17,7 +17,8 @@ GeometryManager::GeometryManager(
 
 void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
 {
-    m_geometryWindow.onSpawnCube = [this, onObjectCreated](float size, const MaterialProperties &mat) {
+    m_geometryWindow.onSpawnCube = [this, onObjectCreated](float size,
+                                       const MaterialProperties &mat) {
         GameObject new_obj;
         auto data { GeometryGenerator::generateCube(size) };
 
@@ -47,41 +48,43 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
         }
     };
 
-    m_geometryWindow.onSpawnSphere
-        = [this, onObjectCreated](float radius, int sectors, int stacks, const MaterialProperties &mat) {
-              GameObject new_obj;
-              auto data { GeometryGenerator::generateSphere(
-                  radius, sectors, stacks) };
+    m_geometryWindow.onSpawnSphere = [this, onObjectCreated](float radius,
+                                         int sectors, int stacks,
+                                         const MaterialProperties &mat) {
+        GameObject new_obj;
+        auto data { GeometryGenerator::generateSphere(
+            radius, sectors, stacks) };
 
-              auto object = std::make_unique<Object3D>(
-                  data.vertices, std::vector<unsigned int> {}, mat.color);
+        auto object = std::make_unique<Object3D>(
+            data.vertices, std::vector<unsigned int> {}, mat.color);
 
-              // Set material properties
-              object->setEmissive(mat.emissive);
-              object->setPercentSpecular(mat.percentSpecular);
-              object->setRoughness(mat.roughness);
-              object->setSpecularColor(mat.specularColor);
+        // Set material properties
+        object->setEmissive(mat.emissive);
+        object->setPercentSpecular(mat.percentSpecular);
+        object->setRoughness(mat.roughness);
+        object->setSpecularColor(mat.specularColor);
 
-              new_obj.rendererId = m_renderer->registerObject(std::move(object));
-              new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
-              new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
-              new_obj.setName(
-                  std::format("Sphere {}", m_geometryWindow.m_sphereCount));
-              m_renderer->updateTransform(
-                  new_obj.rendererId, new_obj.getModelMatrix());
+        new_obj.rendererId = m_renderer->registerObject(std::move(object));
+        new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
+        new_obj.setAABB(data.aabbCorner1, data.aabbCorner2);
+        new_obj.setName(
+            std::format("Sphere {}", m_geometryWindow.m_sphereCount));
+        m_renderer->updateTransform(
+            new_obj.rendererId, new_obj.getModelMatrix());
 
-              std::unique_ptr<SceneGraph::Node> childNode
-                  = std::make_unique<SceneGraph::Node>();
-              childNode->setData(new_obj);
-              m_sceneGraph.getRoot()->addChild(std::move(childNode));
+        std::unique_ptr<SceneGraph::Node> childNode
+            = std::make_unique<SceneGraph::Node>();
+        childNode->setData(new_obj);
+        m_sceneGraph.getRoot()->addChild(std::move(childNode));
 
-              if (onObjectCreated) {
-                  onObjectCreated();
-              }
-          };
+        if (onObjectCreated) {
+            onObjectCreated();
+        }
+    };
 
     m_geometryWindow.onSpawnCylinder = [this, onObjectCreated](float radius,
-                                           float height, int sectors, const MaterialProperties &mat) {
+                                           float height, int sectors,
+                                           const MaterialProperties &mat) {
         GameObject new_obj;
         auto data { GeometryGenerator::generateCylinder(
             radius, height, sectors) };

@@ -80,7 +80,8 @@ public:
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
         const glm::vec3 &corner2) override;
-    std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
+    std::vector<std::unique_ptr<RenderableObject>>
+    extractAllObjects() override;
 
     // Material property accessors
     void setObjectColor(int objectId, const glm::vec3 &color) override;
@@ -114,8 +115,10 @@ public:
 
     // Window related
     bool shouldWindowClose() override;
-    void addKeyCallback(int key, int action, std::function<void()> callback) override;
-    void addCursorCallback(std::function<void(double, double)> callback) override;
+    void addKeyCallback(
+        int key, int action, std::function<void()> callback) override;
+    void addCursorCallback(
+        std::function<void(double, double)> callback) override;
     void addDropCallback(
         std::function<void(const std::vector<std::string> &paths,
             double mouseX, double mouseY)>

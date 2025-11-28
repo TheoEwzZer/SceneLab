@@ -19,8 +19,7 @@
 
 #include "objects/Light.hpp"
 
-App::App()
-    : m_window(1920, 1080, "SceneLab")
+App::App() : m_window(1920, 1080, "SceneLab")
 {
     m_window.initImGui();
     m_renderer = std::make_unique<RasterizationRenderer>(m_window);
@@ -128,13 +127,16 @@ void App::init()
         }
 
         // Re-register all objects with the new renderer
-        // Update rendererId in all GameObjects by using old rendererId as index into objects vector
+        // Update rendererId in all GameObjects by using old rendererId as
+        // index into objects vector
         m_sceneGraph.traverse([&](GameObject &obj, int depth) {
             (void)depth;
-            if (obj.rendererId >= 0 && obj.rendererId < static_cast<int>(objects.size())) {
+            if (obj.rendererId >= 0
+                && obj.rendererId < static_cast<int>(objects.size())) {
                 auto &renderObj = objects[obj.rendererId];
                 if (renderObj) {
-                    obj.rendererId = m_renderer->registerObject(std::move(renderObj));
+                    obj.rendererId
+                        = m_renderer->registerObject(std::move(renderObj));
                 } else {
                     obj.rendererId = -1;
                 }
@@ -146,14 +148,15 @@ void App::init()
             [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
                 (void)depth;
                 if (obj.rendererId >= 0) {
-                    m_renderer->updateTransform(obj.rendererId, worldTransform);
+                    m_renderer->updateTransform(
+                        obj.rendererId, worldTransform);
                 }
             });
 
         // Recreate TextureManager with the new renderer
         if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
-            m_textureManager = std::make_unique<TextureManager>(
-                m_sceneGraph, *m_transformManager,
+            m_textureManager = std::make_unique<TextureManager>(m_sceneGraph,
+                *m_transformManager,
                 dynamic_cast<RasterizationRenderer &>(*m_renderer));
         } else {
             m_textureManager.reset();
@@ -161,8 +164,8 @@ void App::init()
 
         // Re-register renderer callbacks
         m_renderer->setCameraOverlayCallback(
-            [this](int id, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize,
-                bool isHovered) {
+            [this](int id, const Camera &camera, ImVec2 imagePos,
+                ImVec2 imageSize, bool isHovered) {
                 m_transformManager->renderCameraGizmo(
                     id, camera, imagePos, imageSize, isHovered);
             });
@@ -174,7 +177,7 @@ void App::init()
         for (int camId : m_camera.getCameraIds()) {
             m_renderer->createCameraViews(camId, 640, 360);
         }
-    });    // Register left shift key for multi-selection
+    }); // Register left shift key for multi-selection
     m_renderer->addKeyCallback(
         GLFW_KEY_LEFT_SHIFT, GLFW_PRESS, [&]() { leftShiftPressed = true; });
     m_renderer->addKeyCallback(GLFW_KEY_LEFT_SHIFT, GLFW_RELEASE,

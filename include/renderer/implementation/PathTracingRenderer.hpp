@@ -47,13 +47,14 @@ private:
         int triangleStartIndex;
         int triangleCount;
     };
+
     std::vector<ObjectData> m_objects;
 
     void rebuildTriangleArray();
 
     // Main view accumulation buffers
-    unsigned int m_accumulationFBO[2] = {0, 0};
-    unsigned int m_accumulationTexture[2] = {0, 0};
+    unsigned int m_accumulationFBO[2] = { 0, 0 };
+    unsigned int m_accumulationTexture[2] = { 0, 0 };
     int m_currentAccumulationBuffer = 0;
     glm::vec3 m_lastViewPos = glm::vec3(0.0f);
     glm::vec3 m_lastViewRotation = glm::vec3(0.0f);
@@ -67,7 +68,8 @@ private:
     void initCameraAccumulationBuffers(CameraView &view);
     void cleanupCameraAccumulationBuffers(CameraView &view);
     void resetCameraAccumulation(CameraView &view);
-    bool shouldResetCameraAccumulation(const Camera &cam, CameraView &view) const;
+    bool shouldResetCameraAccumulation(
+        const Camera &cam, CameraView &view) const;
 
     ShaderProgram m_pathTracingShader;
 
@@ -110,9 +112,15 @@ public:
         const glm::vec3 &color) override;
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
+
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
-        const glm::vec3 &corner2) override { return; }
-    std::vector<std::unique_ptr<RenderableObject>> extractAllObjects() override;
+        const glm::vec3 &corner2) override
+    {
+        return;
+    }
+
+    std::vector<std::unique_ptr<RenderableObject>>
+    extractAllObjects() override;
 
     // Material property accessors
     void setObjectColor(int objectId, const glm::vec3 &color) override;
@@ -146,8 +154,10 @@ public:
 
     // Window related
     bool shouldWindowClose() override;
-    void addKeyCallback(int key, int action, std::function<void()> callback) override;
-    void addCursorCallback(std::function<void(double, double)> callback) override;
+    void addKeyCallback(
+        int key, int action, std::function<void()> callback) override;
+    void addCursorCallback(
+        std::function<void(double, double)> callback) override;
     void addDropCallback(
         std::function<void(const std::vector<std::string> &paths,
             double mouseX, double mouseY)>
@@ -159,7 +169,11 @@ public:
     void destroyCameraViews(int id) override;
     void renderAllViews(CameraManager &cameraManager) override;
     void setCameraOverlayCallback(CameraOverlayCallback callback) override;
-    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override { return; }
+
+    void setBoundingBoxDrawCallback(BoundingBoxDrawCallback callback) override
+    {
+        return;
+    }
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);
     int createCheckerboardTexture(const std::string &name, int width,
@@ -204,4 +218,3 @@ public:
 
     const std::vector<int> &getCubemapHandles() const;
 };
-

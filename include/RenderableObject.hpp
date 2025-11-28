@@ -79,16 +79,26 @@ public:
     [[nodiscard]] glm::vec3 getColor() const { return m_color; }
 
     void setEmissive(const glm::vec3 &emissive) { m_emissive = emissive; }
+
     [[nodiscard]] glm::vec3 getEmissive() const { return m_emissive; }
 
     void setPercentSpecular(float percent) { m_percentSpecular = percent; }
-    [[nodiscard]] float getPercentSpecular() const { return m_percentSpecular; }
+
+    [[nodiscard]] float getPercentSpecular() const
+    {
+        return m_percentSpecular;
+    }
 
     void setRoughness(float roughness) { m_roughness = roughness; }
+
     [[nodiscard]] float getRoughness() const { return m_roughness; }
 
     void setSpecularColor(const glm::vec3 &color) { m_specularColor = color; }
-    [[nodiscard]] glm::vec3 getSpecularColor() const { return m_specularColor; }
+
+    [[nodiscard]] glm::vec3 getSpecularColor() const
+    {
+        return m_specularColor;
+    }
 
     void assignTexture(const int textureHandle)
     {
@@ -97,6 +107,7 @@ public:
     }
 
     std::vector<float> &getVertices() { return m_vertices; }
+
     std::vector<unsigned int> &getIndices() { return m_indices; }
 
     [[nodiscard]] int getTextureHandle() const { return m_textureHandle; }

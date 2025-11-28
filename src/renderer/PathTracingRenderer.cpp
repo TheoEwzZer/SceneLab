@@ -13,16 +13,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 
-PathTracingRenderer::PathTracingRenderer(Window &window)
-    : m_window(window)
+PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
 {
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     m_pathTracingShader.init(
-        "../assets/shaders/shader.vert",
-        "../assets/shaders/pathtracing.frag");
+        "../assets/shaders/shader.vert", "../assets/shaders/pathtracing.frag");
     m_pathTracingShader.use();
     glm::mat4 identity = glm::mat4(1.0f);
     m_pathTracingShader.setMat4("model", identity);
@@ -34,28 +32,30 @@ PathTracingRenderer::PathTracingRenderer(Window &window)
     m_viewMatrix = glm::mat4(1.0f);
     m_viewMatrix = glm::translate(m_viewMatrix, glm::vec3(0.0f, 0.0f, -4.0f));
     // default to orthographic projection
-    m_projMatrix = glm::ortho(
-        -1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 100.0f);
+    m_projMatrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 100.0f);
     float quadVertices[] = {
         // positions        // texCoords
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // top left
+        -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top left
         -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // bottom left
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+        1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
 
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // top left
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-         1.0f,  1.0f, 0.0f, 1.0f, 1.0f  // top right
+        -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top left
+        1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+        1.0f, 1.0f, 0.0f, 1.0f, 1.0f // top right
     };
     // register in VBO, VAO etc.
     glGenVertexArrays(1, &m_quadVAO);
     glGenBuffers(1, &m_quadVBO);
     glBindVertexArray(m_quadVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glBufferData(
+        GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glVertexAttribPointer(
+        0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+        (void *)(3 * sizeof(float)));
     glBindVertexArray(0);
 
     initAccumulationBuffers();
@@ -64,7 +64,7 @@ PathTracingRenderer::PathTracingRenderer(Window &window)
 
     texData.reserve(m_triangles.size() * 3 * 4);
 
-    for (const auto& t : m_triangles) {
+    for (const auto &t : m_triangles) {
         texData.push_back(t.v0.x);
         texData.push_back(t.v0.y);
         texData.push_back(t.v0.z);
@@ -87,15 +87,8 @@ PathTracingRenderer::PathTracingRenderer(Window &window)
     int width = 5;
     int height = m_triangles.size();
 
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA32F,
-                 width,
-                 height,
-                 0,
-                 GL_RGBA,
-                 GL_FLOAT,
-                 texData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
+        GL_FLOAT, texData.data());
 
     // texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -105,7 +98,8 @@ PathTracingRenderer::PathTracingRenderer(Window &window)
 
     m_pathTracingShader.use();
     m_pathTracingShader.setInt("trianglesTex", m_triangleTexture);
-    m_pathTracingShader.setInt("numTriangles", static_cast<int>(m_triangles.size()));
+    m_pathTracingShader.setInt(
+        "numTriangles", static_cast<int>(m_triangles.size()));
 }
 
 PathTracingRenderer::~PathTracingRenderer()
@@ -122,15 +116,15 @@ int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj)
 }
 
 int PathTracingRenderer::registerObject(
-    std::unique_ptr<RenderableObject> obj,
-    const std::string &texturePath)
+    std::unique_ptr<RenderableObject> obj, const std::string &texturePath)
 {
-    (void) obj;
-    (void) texturePath;
+    (void)obj;
+    (void)texturePath;
     return 0;
 }
 
-int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
+int PathTracingRenderer::registerObject(
+    std::unique_ptr<RenderableObject> obj, const glm::vec3 &color)
 {
     (void)color;
 
@@ -153,15 +147,16 @@ int PathTracingRenderer::registerObject(std::unique_ptr<RenderableObject> obj, c
     return objectId;
 }
 
-
 void PathTracingRenderer::updateTransform(
     const int objectId, const glm::mat4 &modelMatrix)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
+    }
 
-    if (!m_objects[objectId].renderObject)
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].transform = modelMatrix;
 
@@ -170,11 +165,13 @@ void PathTracingRenderer::updateTransform(
 
 void PathTracingRenderer::removeObject(const int objectId)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
+    }
 
-    if (!m_objects[objectId].renderObject)
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject.reset();
     m_objects[objectId].triangleStartIndex = 0;
@@ -185,7 +182,8 @@ void PathTracingRenderer::removeObject(const int objectId)
     rebuildTriangleArray();
 }
 
-std::vector<std::unique_ptr<RenderableObject>> PathTracingRenderer::extractAllObjects()
+std::vector<std::unique_ptr<RenderableObject>>
+PathTracingRenderer::extractAllObjects()
 {
     std::vector<std::unique_ptr<RenderableObject>> objects;
     objects.reserve(m_objects.size());
@@ -206,10 +204,12 @@ std::vector<std::unique_ptr<RenderableObject>> PathTracingRenderer::extractAllOb
 
 void PathTracingRenderer::setObjectColor(int objectId, const glm::vec3 &color)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject->setColor(color);
     rebuildTriangleArray();
@@ -217,20 +217,25 @@ void PathTracingRenderer::setObjectColor(int objectId, const glm::vec3 &color)
 
 glm::vec3 PathTracingRenderer::getObjectColor(int objectId) const
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return glm::vec3(1.0f);
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return glm::vec3(1.0f);
+    }
 
     return m_objects[objectId].renderObject->getColor();
 }
 
-void PathTracingRenderer::setObjectEmissive(int objectId, const glm::vec3 &emissive)
+void PathTracingRenderer::setObjectEmissive(
+    int objectId, const glm::vec3 &emissive)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject->setEmissive(emissive);
     rebuildTriangleArray();
@@ -238,20 +243,24 @@ void PathTracingRenderer::setObjectEmissive(int objectId, const glm::vec3 &emiss
 
 glm::vec3 PathTracingRenderer::getObjectEmissive(int objectId) const
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return glm::vec3(0.0f);
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return glm::vec3(0.0f);
+    }
 
     return m_objects[objectId].renderObject->getEmissive();
 }
 
 void PathTracingRenderer::setObjectPercentSpecular(int objectId, float percent)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject->setPercentSpecular(percent);
     rebuildTriangleArray();
@@ -259,20 +268,24 @@ void PathTracingRenderer::setObjectPercentSpecular(int objectId, float percent)
 
 float PathTracingRenderer::getObjectPercentSpecular(int objectId) const
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return 0.0f;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return 0.0f;
+    }
 
     return m_objects[objectId].renderObject->getPercentSpecular();
 }
 
 void PathTracingRenderer::setObjectRoughness(int objectId, float roughness)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject->setRoughness(roughness);
     rebuildTriangleArray();
@@ -280,20 +293,25 @@ void PathTracingRenderer::setObjectRoughness(int objectId, float roughness)
 
 float PathTracingRenderer::getObjectRoughness(int objectId) const
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return 0.5f;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return 0.5f;
+    }
 
     return m_objects[objectId].renderObject->getRoughness();
 }
 
-void PathTracingRenderer::setObjectSpecularColor(int objectId, const glm::vec3 &color)
+void PathTracingRenderer::setObjectSpecularColor(
+    int objectId, const glm::vec3 &color)
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return;
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return;
+    }
 
     m_objects[objectId].renderObject->setSpecularColor(color);
     rebuildTriangleArray();
@@ -301,10 +319,12 @@ void PathTracingRenderer::setObjectSpecularColor(int objectId, const glm::vec3 &
 
 glm::vec3 PathTracingRenderer::getObjectSpecularColor(int objectId) const
 {
-    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size()))
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
         return glm::vec3(1.0f);
-    if (!m_objects[objectId].renderObject)
+    }
+    if (!m_objects[objectId].renderObject) {
         return glm::vec3(1.0f);
+    }
 
     return m_objects[objectId].renderObject->getSpecularColor();
 }
@@ -350,9 +370,7 @@ void PathTracingRenderer::beginFrame()
     ImGuizmo::SetRect(0, 0, 1920, 1080);
 }
 
-void PathTracingRenderer::drawAll(Camera cam)
-{
-}
+void PathTracingRenderer::drawAll(Camera cam) {}
 
 void PathTracingRenderer::endFrame()
 {
@@ -385,9 +403,8 @@ void PathTracingRenderer::addCursorCallback(
     m_window.addCursorCallback(callback);
 }
 
-void PathTracingRenderer::addDropCallback(
-    std::function<void(const std::vector<std::string> &paths,
-        double mouseX, double mouseY)>
+void PathTracingRenderer::addDropCallback(std::function<void(
+        const std::vector<std::string> &paths, double mouseX, double mouseY)>
         callback)
 {
     m_window.addDropCallback(callback);
@@ -399,7 +416,8 @@ GLFWwindow *PathTracingRenderer::getWindow() const
 }
 
 // Camera view management methods
-void PathTracingRenderer::setCameraOverlayCallback(CameraOverlayCallback callback)
+void PathTracingRenderer::setCameraOverlayCallback(
+    CameraOverlayCallback callback)
 {
     m_cameraOverlayCallback = std::move(callback);
 }
@@ -419,7 +437,8 @@ void PathTracingRenderer::renderAllViews(CameraManager &cameraManager)
     }
 }
 
-void PathTracingRenderer::createCameraViews(const int id, int width, int height)
+void PathTracingRenderer::createCameraViews(
+    const int id, int width, int height)
 {
     if (!m_cameraViews.contains(id)) {
         CameraView view;
@@ -472,7 +491,8 @@ void PathTracingRenderer::destroyCameraViews(const int id)
     }
 }
 
-void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
+void PathTracingRenderer::renderCameraViews(
+    const Camera &cam, CameraView &view)
 {
     // Save current state
     GLint previousFBO;
@@ -488,7 +508,8 @@ void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
     }
 
     // Bind the current accumulation FBO to render to
-    glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[view.currentAccumulationBuffer]);
+    glBindFramebuffer(
+        GL_FRAMEBUFFER, view.accumulationFBO[view.currentAccumulationBuffer]);
     glViewport(0, 0, view.size.x, view.size.y);
 
     // Render pathtraced content
@@ -496,7 +517,9 @@ void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
     m_pathTracingShader.setVec3("viewPos", cam.getPosition());
     glm::vec3 rotationRadians = glm::radians(cam.getRotation());
     m_pathTracingShader.setVec3("viewRotation", rotationRadians);
-    float aspectRatio = (view.size.y > 0) ? (static_cast<float>(view.size.x) / static_cast<float>(view.size.y)) : 1.0f;
+    float aspectRatio = (view.size.y > 0)
+        ? (static_cast<float>(view.size.x) / static_cast<float>(view.size.y))
+        : 1.0f;
     m_pathTracingShader.setFloat("aspectRatio", aspectRatio);
     m_pathTracingShader.setFloat("fov", cam.getFov());
     m_pathTracingShader.setInt("iFrame", view.iFrame);
@@ -511,7 +534,8 @@ void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_triangleTexture);
     m_pathTracingShader.setInt("trianglesTex", 1);
-    m_pathTracingShader.setInt("numTriangles", static_cast<int>(m_triangles.size()));
+    m_pathTracingShader.setInt(
+        "numTriangles", static_cast<int>(m_triangles.size()));
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -523,7 +547,8 @@ void PathTracingRenderer::renderCameraViews(const Camera &cam, CameraView &view)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[view.currentAccumulationBuffer]);
+    glBindTexture(GL_TEXTURE_2D,
+        view.accumulationTexture[view.currentAccumulationBuffer]);
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
@@ -686,7 +711,8 @@ void PathTracingRenderer::initAccumulationBuffers()
     for (int i = 0; i < 2; i++) {
         // Setup texture
         glBindTexture(GL_TEXTURE_2D, m_accumulationTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
+            GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -694,10 +720,13 @@ void PathTracingRenderer::initAccumulationBuffers()
 
         // Setup framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, m_accumulationFBO[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_accumulationTexture[i], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, m_accumulationTexture[i], 0);
 
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Accumulation framebuffer " << i << " is incomplete!" << std::endl;
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)
+            != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Accumulation framebuffer " << i << " is incomplete!"
+                      << std::endl;
         }
     }
 
@@ -769,7 +798,8 @@ void PathTracingRenderer::initCameraAccumulationBuffers(CameraView &view)
     for (int i = 0; i < 2; i++) {
         // Setup texture
         glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
+            GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -777,10 +807,13 @@ void PathTracingRenderer::initCameraAccumulationBuffers(CameraView &view)
 
         // Setup framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, view.accumulationFBO[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, view.accumulationTexture[i], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, view.accumulationTexture[i], 0);
 
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Camera accumulation framebuffer " << i << " is incomplete!" << std::endl;
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)
+            != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Camera accumulation framebuffer " << i
+                      << " is incomplete!" << std::endl;
         }
     }
 
@@ -824,7 +857,8 @@ void PathTracingRenderer::resetCameraAccumulation(CameraView &view)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-bool PathTracingRenderer::shouldResetCameraAccumulation(const Camera &cam, CameraView &view) const
+bool PathTracingRenderer::shouldResetCameraAccumulation(
+    const Camera &cam, CameraView &view) const
 {
     const float epsilon = 0.0001f;
 
@@ -868,13 +902,22 @@ void PathTracingRenderer::rebuildTriangleArray()
         int stride = 8; // position (3) + texcoord (2) + normal (3)
 
         for (size_t i = 0; i < vertices.size(); i += stride * 3) {
-            if (i + stride * 3 > vertices.size()) break;
+            if (i + stride * 3 > vertices.size()) {
+                break;
+            }
 
             Triangle t;
 
-            glm::vec4 v0 = objData.transform * glm::vec4(vertices[i], vertices[i + 1], vertices[i + 2], 1.0f);
-            glm::vec4 v1 = objData.transform * glm::vec4(vertices[i + stride], vertices[i + stride + 1], vertices[i + stride + 2], 1.0f);
-            glm::vec4 v2 = objData.transform * glm::vec4(vertices[i + stride * 2], vertices[i + stride * 2 + 1], vertices[i + stride * 2 + 2], 1.0f);
+            glm::vec4 v0 = objData.transform
+                * glm::vec4(
+                    vertices[i], vertices[i + 1], vertices[i + 2], 1.0f);
+            glm::vec4 v1 = objData.transform
+                * glm::vec4(vertices[i + stride], vertices[i + stride + 1],
+                    vertices[i + stride + 2], 1.0f);
+            glm::vec4 v2 = objData.transform
+                * glm::vec4(vertices[i + stride * 2],
+                    vertices[i + stride * 2 + 1], vertices[i + stride * 2 + 2],
+                    1.0f);
 
             t.v0 = glm::vec3(v0) / v0.w;
             t.v1 = glm::vec3(v1) / v1.w;
@@ -889,15 +932,18 @@ void PathTracingRenderer::rebuildTriangleArray()
             m_triangles.push_back(t);
         }
 
-        objData.triangleCount = static_cast<int>(m_triangles.size()) - objData.triangleStartIndex;
+        objData.triangleCount = static_cast<int>(m_triangles.size())
+            - objData.triangleStartIndex;
     }
 
     // Layout: width=6, each row contains:
-    // [v0.xyz, v1.x] [v1.yz, v2.xy] [v2.z, color.xyz] [emissive.xyz, percentSpecular] [roughness, specularColor.xyz]
+    // [v0.xyz, v1.x] [v1.yz, v2.xy] [v2.z, color.xyz] [emissive.xyz,
+    // percentSpecular] [roughness, specularColor.xyz]
     texData.clear();
-    texData.reserve(m_triangles.size() * 6 * 4); // 6 pixels * 4 floats (RGBA) per triangle
+    texData.reserve(
+        m_triangles.size() * 6 * 4); // 6 pixels * 4 floats (RGBA) per triangle
 
-    for (const auto& t : m_triangles) {
+    for (const auto &t : m_triangles) {
         // Pixel 0: v0 position
         texData.push_back(t.v0.x);
         texData.push_back(t.v0.y);
@@ -932,15 +978,8 @@ void PathTracingRenderer::rebuildTriangleArray()
     glBindTexture(GL_TEXTURE_2D, m_triangleTexture);
     int width = 5;
     int height = std::max(1, static_cast<int>(m_triangles.size()));
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA32F,
-                 width,
-                 height,
-                 0,
-                 GL_RGBA,
-                 GL_FLOAT,
-                 texData.empty() ? nullptr : texData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
+        GL_FLOAT, texData.empty() ? nullptr : texData.data());
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -948,5 +987,6 @@ void PathTracingRenderer::rebuildTriangleArray()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     m_pathTracingShader.use();
     m_pathTracingShader.setInt("trianglesTex", 1);
-    m_pathTracingShader.setInt("numTriangles", static_cast<int>(m_triangles.size()));
+    m_pathTracingShader.setInt(
+        "numTriangles", static_cast<int>(m_triangles.size()));
 }
