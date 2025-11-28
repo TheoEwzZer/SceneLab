@@ -10,7 +10,7 @@
 #include "TransformManager.hpp"
 #include "objects/Light.hpp"
 #include "GameObject.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/implementation/RasterizationRenderer.hpp"
 
 class App;
 

@@ -13,7 +13,9 @@ Light::Light(const std::vector<float> &vertices,
     const std::vector<unsigned int> &indices, const glm::vec3 &color)
 {
     init(vertices, indices);
+    m_color = color;
     m_mat.m_diffuseColor = color;
+    updateEmissive();
 }
 
 Light::Light(const std::vector<float> &vertices,
@@ -21,18 +23,22 @@ Light::Light(const std::vector<float> &vertices,
 {
     init(vertices, indices);
     this->m_textureHandle = textureHandle;
+    updateEmissive();
 }
 
 void Light::init(const std::vector<float> &vertices,
     const std::vector<unsigned int> &indices)
 {
+    // Store vertices for path tracing
+    m_vertices = vertices;
+    m_indices = indices;
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    std::vector<float> processedVertices;
     useIndices = !indices.empty();
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float),
         vertices.data(), GL_STATIC_DRAW);
@@ -67,10 +73,25 @@ void Light::useShader(ShaderProgram &shader) const {
     (void) shader;
 }
 
+void Light::updateEmissive()
+{
+    // For rasterization: use normalized color
+    m_mat.m_emissiveColor = m_color;
+    // For path tracing: use color * intensity
+    m_emissive = m_color * m_intensity;
+}
+
+void Light::setIntensity(float intensity)
+{
+    m_intensity = intensity;
+    updateEmissive();
+}
+
 void Light::setDirectional(const glm::vec3 &color)
 {
     m_color = color;
     m_type = Directional;
+    updateEmissive();
 }
 
 void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq)
@@ -80,6 +101,7 @@ void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq)
     m_kl = kl;
     m_kq = kq;
     m_type = Point;
+    updateEmissive();
 }
 
 void Light::setSpot(const glm::vec3 &color, float ke, float kl, float kq, float p)
@@ -90,6 +112,7 @@ void Light::setSpot(const glm::vec3 &color, float ke, float kl, float kq, float 
     m_kq = kq;
     m_p = p;
     m_type = Spot;
+    updateEmissive();
 }
 
 std::string Light::getNameStr() const
@@ -155,7 +178,18 @@ void Light::draw([[maybe_unused]] const ShaderProgram &vectorial,
 
     lighting.use();
     lighting.setMat4("model", modelMatrix);
-    // Material::setShaderUniforms(lighting, m_mat);
+    const bool useTexture = this->m_useTexture && texture
+        && texture->target == TextureTarget::Texture2D;
+    lighting.setBool("useTexture", useTexture);
+
+    m_mat.setShaderUniforms(lighting);
+
+    lighting.setInt("filterMode", static_cast<int>(filterMode));
+    glm::vec2 texelSize = useTexture
+        ? glm::vec2(1.0f / static_cast<float>(texture->size.x),
+            1.0f / static_cast<float>(texture->size.y))
+        : glm::vec2(0.0f);
+    lighting.setVec2("texelSize", texelSize);
 
     if (texture) {
         if (texture->target == TextureTarget::Texture2D) {

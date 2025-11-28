@@ -8,7 +8,7 @@
 #include <cmath>
 
 TransformManager::TransformManager(
-    SceneGraph &sceneGraph, std::unique_ptr<ARenderer> &renderer) :
+    SceneGraph &sceneGraph, std::unique_ptr<IRenderer> &renderer) :
     m_sceneGraph(sceneGraph),
     m_renderer(renderer)
 {
@@ -28,6 +28,20 @@ void TransformManager::addToSelection(SceneGraph::Node *node)
 {
     if (node && canAddToSelection(node)) {
         m_selectedNodes.push_back(node);
+    }
+}
+
+void TransformManager::selectAll()
+{
+    m_selectedNodes.clear();
+    // Select all root-level children (not the root itself, and not nested
+    // children to avoid parent-child conflicts)
+    auto *root = m_sceneGraph.getRoot();
+    for (int i = 0; i < root->getChildCount(); ++i) {
+        auto *child = root->getChild(i);
+        if (child && child->getData().rendererId >= 0) {
+            m_selectedNodes.push_back(child);
+        }
     }
 }
 
@@ -53,13 +67,18 @@ bool TransformManager::canAddToSelection(SceneGraph::Node *nodeToAdd)
     return true;
 }
 
-void TransformManager::renderTransformUI(bool leftShiftPressed)
+void TransformManager::renderTransformUI(
+    bool leftShiftPressed, bool *p_openTransform, bool *p_openHierarchy)
 {
     // Render scene graph hierarchy with selection
-    m_sceneGraph.renderHierarchyUI(
-        m_selectedNodes, leftShiftPressed, [this](SceneGraph::Node *node) {
-            return this->canAddToSelection(node);
-        });
+    if (!p_openHierarchy || *p_openHierarchy) {
+        m_sceneGraph.renderHierarchyUI(
+            m_selectedNodes, leftShiftPressed,
+            [this](SceneGraph::Node *node) {
+                return this->canAddToSelection(node);
+            },
+            p_openHierarchy);
+    }
 
     // Only early-exit if there are no objects at all
     if (m_sceneGraph.getRoot()->getChildCount() == 0
@@ -67,7 +86,14 @@ void TransformManager::renderTransformUI(bool leftShiftPressed)
         return;
     }
 
-    ImGui::Begin("Transforms");
+    if (p_openTransform && !*p_openTransform) {
+        return;
+    }
+
+    if (!ImGui::Begin("Transform", p_openTransform)) {
+        ImGui::End();
+        return;
+    }
 
     if (m_selectedNodes.empty()) {
         ImGui::Text("No objects selected");
@@ -266,6 +292,129 @@ void TransformManager::renderTransformUI(bool leftShiftPressed)
         if (ImGui::Button("Disable All Selected")) {
             for (auto *node : m_selectedNodes) {
                 node->getData().setBoundingBoxActive(false);
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
+void TransformManager::renderRayTracingUI(bool *p_open)
+{
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Ray Tracing", p_open)) {
+        ImGui::End();
+        return;
+    }
+
+    if (m_selectedNodes.empty()) {
+        ImGui::Text("Select an object to edit material properties");
+        ImGui::End();
+        return;
+    }
+
+    int rendererId = m_selectedNodes[0]->getData().rendererId;
+
+    if (rendererId < 0) {
+        ImGui::TextDisabled("No renderable object selected");
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Material Properties");
+    ImGui::Separator();
+
+    // Color
+    glm::vec3 color = m_renderer->getObjectColor(rendererId);
+    float colorArray[3] = { color.r, color.g, color.b };
+    if (ImGui::ColorEdit3("Color", colorArray)) {
+        glm::vec3 newColor(colorArray[0], colorArray[1], colorArray[2]);
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectColor(objId, newColor);
+            }
+        }
+    }
+
+    // Emissive
+    glm::vec3 emissive = m_renderer->getObjectEmissive(rendererId);
+    float emissiveArray[3] = { emissive.r, emissive.g, emissive.b };
+    if (ImGui::ColorEdit3("Emissive", emissiveArray)) {
+        glm::vec3 newEmissive(
+            emissiveArray[0], emissiveArray[1], emissiveArray[2]);
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectEmissive(objId, newEmissive);
+            }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Specular");
+
+    // Percent Specular
+    float percentSpecular = m_renderer->getObjectPercentSpecular(rendererId);
+    if (ImGui::SliderFloat("Specular %", &percentSpecular, 0.0f, 1.0f)) {
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectPercentSpecular(objId, percentSpecular);
+            }
+        }
+    }
+
+    // Roughness
+    float roughness = m_renderer->getObjectRoughness(rendererId);
+    if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f)) {
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectRoughness(objId, roughness);
+            }
+        }
+    }
+
+    // Specular Color
+    glm::vec3 specularColor = m_renderer->getObjectSpecularColor(rendererId);
+    float specularArray[3]
+        = { specularColor.r, specularColor.g, specularColor.b };
+    if (ImGui::ColorEdit3("Specular Color", specularArray)) {
+        glm::vec3 newSpecularColor(
+            specularArray[0], specularArray[1], specularArray[2]);
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectSpecularColor(objId, newSpecularColor);
+            }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Refraction");
+
+    // Refraction Chance
+    float refractionChance = m_renderer->getObjectRefractionChance(rendererId);
+    if (ImGui::SliderFloat("Refraction %", &refractionChance, 0.0f, 1.0f)) {
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectRefractionChance(objId, refractionChance);
+            }
+        }
+    }
+
+    // Index of Refraction
+    float ior = m_renderer->getObjectIndexOfRefraction(rendererId);
+    if (ImGui::SliderFloat("IOR", &ior, 1.0f, 2.5f)) {
+        for (auto *node : m_selectedNodes) {
+            int objId = node->getData().rendererId;
+            if (objId >= 0) {
+                m_renderer->setObjectIndexOfRefraction(objId, ior);
             }
         }
     }

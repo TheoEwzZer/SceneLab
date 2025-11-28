@@ -15,9 +15,16 @@ TextureManager::TextureManager(SceneGraph &sceneGraph,
 {
 }
 
-void TextureManager::renderUI()
+void TextureManager::renderUI(bool *p_open)
 {
-    ImGui::Begin("Textures");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Texture", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     renderSelectionPanel();
 
@@ -27,7 +34,7 @@ void TextureManager::renderUI()
     ImGui::SeparatorText("Tone Mapping");
     renderToneMappingPanel();
 
-    ImGui::SeparatorText("Skybox Cubemaps");
+    ImGui::SeparatorText("Cubemap / Environment");
     renderCubemapPanel();
 
     ImGui::End();

@@ -23,7 +23,7 @@ void UIIllumination::addLightToScene(
         = std::make_unique<SceneGraph::Node>();
     lightNode->getData().setName(light->getNameStr());
     lightNode->getData().rendererId
-        = app->m_rasterRenderer->registerObject(std::move(light), "");
+        = app->m_renderer->registerObject(std::move(light), "");
     lightNode->getData().setAABB(
         lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
     lightNode->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
@@ -45,15 +45,16 @@ void UIIllumination::renderUI(App *app)
     static const char *materials_preset[] = { "Brass", "Bronze", "Gold",
         "Silver", "Copper", "Plastic", "Chrome", "Ceramic" };
 
-    if (app->m_rasterRenderer != nullptr) {
+    auto *rasterRenderer = dynamic_cast<RasterizationRenderer *>(app->m_renderer.get());
+    if (rasterRenderer != nullptr) {
         ImGui::Begin("Illumination");
 
         ImGui::Separator();
         ImGui::Text("Scene illumination");
         if (ImGui::Combo("Model", &m_illumination_model, models,
                 IM_ARRAYSIZE(models))) {
-            app->m_rasterRenderer->setLightingModel(
-                static_cast<ARenderer::LightingModel>(m_illumination_model));
+            rasterRenderer->setLightingModel(
+                static_cast<LightingModel>(m_illumination_model));
         }
 
         ImGui::Separator();
@@ -81,22 +82,17 @@ void UIIllumination::renderUI(App *app)
                 }
                 int rendererId = node->getData().rendererId;
                 if (rendererId >= 0) {
-                    RasterizationRenderer *rend
-                        = dynamic_cast<RasterizationRenderer *>(
-                            app->m_renderer.get());
-                    if (rend != nullptr) {
-                        Material mat(
-                            glm::vec3(m_ambient_color[0], m_ambient_color[1],
-                                m_ambient_color[2]),
-                            glm::vec3(m_diffuse_color[0], m_diffuse_color[1],
-                                m_diffuse_color[2]),
-                            glm::vec3(m_specular_color[0], m_specular_color[1],
-                                m_specular_color[2]),
-                            glm::vec3(m_emissive_color[0], m_emissive_color[1],
-                                m_emissive_color[2]),
-                            m_shininess);
-                        rend->assignMaterialToObject(rendererId, mat);
-                    }
+                    Material mat(
+                        glm::vec3(m_ambient_color[0], m_ambient_color[1],
+                            m_ambient_color[2]),
+                        glm::vec3(m_diffuse_color[0], m_diffuse_color[1],
+                            m_diffuse_color[2]),
+                        glm::vec3(m_specular_color[0], m_specular_color[1],
+                            m_specular_color[2]),
+                        glm::vec3(m_emissive_color[0], m_emissive_color[1],
+                            m_emissive_color[2]),
+                        m_shininess);
+                    rasterRenderer->assignMaterialToObject(rendererId, mat);
                 }
             }
         }
@@ -120,41 +116,36 @@ void UIIllumination::renderUI(App *app)
                 }
                 int rendererId = node->getData().rendererId;
                 if (rendererId >= 0) {
-                    RasterizationRenderer *rend
-                        = dynamic_cast<RasterizationRenderer *>(
-                            app->m_renderer.get());
-                    if (rend != nullptr) {
-                        Light *l = dynamic_cast<Light *>(
-                            &rend->getRenderable(rendererId));
-                        if (l != nullptr) {
-                            switch (l->getType()) {
-                                case Light::Point:
-                                    l->setPoint(glm::vec3(m_light_color[0],
-                                                    m_light_color[1],
-                                                    m_light_color[2]),
-                                        m_kc, m_kl, m_kq);
-                                    break;
-                                case Light::Directional:
-                                    l->setDirectional(glm::vec3(
-                                        m_light_color[0], m_light_color[1],
-                                        m_light_color[2]));
-                                    break;
-                                case Light::Spot:
-                                    l->setSpot(glm::vec3(m_light_color[0],
-                                                   m_light_color[1],
-                                                   m_light_color[2]),
-                                        m_kc, m_kl, m_kq, m_p);
-                                    break;
-                                default:
-                                    break;
-                            }
+                    Light *l = dynamic_cast<Light *>(
+                        &rasterRenderer->getRenderable(rendererId));
+                    if (l != nullptr) {
+                        switch (l->getType()) {
+                            case Light::Point:
+                                l->setPoint(glm::vec3(m_light_color[0],
+                                                m_light_color[1],
+                                                m_light_color[2]),
+                                    m_kc, m_kl, m_kq);
+                                break;
+                            case Light::Directional:
+                                l->setDirectional(glm::vec3(
+                                    m_light_color[0], m_light_color[1],
+                                    m_light_color[2]));
+                                break;
+                            case Light::Spot:
+                                l->setSpot(glm::vec3(m_light_color[0],
+                                               m_light_color[1],
+                                               m_light_color[2]),
+                                    m_kc, m_kl, m_kq, m_p);
+                                break;
+                            default:
+                                break;
                         }
                     }
                 }
             }
         }
 
-        app->m_rasterRenderer->m_ambientLightColor
+        rasterRenderer->m_ambientLightColor
             = glm::vec3(m_ambient_light_color[0], m_ambient_light_color[1],
                 m_ambient_light_color[2]);
 
@@ -189,9 +180,9 @@ void UIIllumination::renderUI(App *app)
                 m_kc, m_kl, m_kq, m_p);
             addLightToScene(light, app, lightGeometry);
         }
-    }
 
-    ImGui::End();
+        ImGui::End();
+    }
 }
 
 UIIllumination::~UIIllumination() {}

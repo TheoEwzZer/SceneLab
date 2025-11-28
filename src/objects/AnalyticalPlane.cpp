@@ -1,29 +1,20 @@
-//
-// Created by clmonn on 11/13/25.
-//
+#include "../../include/objects/AnalyticalPlane.hpp"
+#include "../../include/GeometryGenerator.hpp"
 
-#include "../../include/objects/Object3D.hpp"
-#include "objects/Material.hpp"
-
-Object3D::Object3D(const std::vector<float> &vertices,
-    const std::vector<unsigned int> &indices, const glm::vec3 &color)
+AnalyticalPlane::AnalyticalPlane(
+    float width, float height, const glm::vec3 &normal, const glm::vec3 &color)
 {
-    init(vertices, indices);
+    init(width, height, normal);
     setColor(color);
 }
 
-Object3D::Object3D(const std::vector<float> &vertices,
-    const std::vector<unsigned int> &indices, const int textureHandle)
+void AnalyticalPlane::init(float width, float height, const glm::vec3 &normal)
 {
-    init(vertices, indices);
-    this->m_textureHandle = textureHandle;
-}
+    m_primitiveType = PrimitiveType::Plane;
+    m_planeNormal = glm::normalize(normal);
 
-void Object3D::init(const std::vector<float> &vertices,
-    const std::vector<unsigned int> &indices)
-{
-    m_vertices = vertices;
-    m_indices = indices;
+    auto data = GeometryGenerator::generatePlane(width, height, normal);
+    m_vertices = data.vertices;
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -31,22 +22,11 @@ void Object3D::init(const std::vector<float> &vertices,
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    std::vector<float> processedVertices;
-    useIndices = !indices.empty();
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float),
-        vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(float),
+        m_vertices.data(), GL_STATIC_DRAW);
 
-    if (useIndices) {
-        glGenBuffers(1, &EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-            indices.size() * sizeof(unsigned int), indices.data(),
-            GL_STATIC_DRAW);
-        indexCount = static_cast<unsigned int>(indices.size());
-        useIndices = true;
-    } else {
-        indexCount = static_cast<unsigned int>(vertices.size() / 8);
-    }
+    indexCount = static_cast<unsigned int>(m_vertices.size() / 8);
+    useIndices = false;
 
     glVertexAttribPointer(
         0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
@@ -62,7 +42,7 @@ void Object3D::init(const std::vector<float> &vertices,
     isActive = true;
 }
 
-void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
+void AnalyticalPlane::draw([[maybe_unused]] const ShaderProgram &vectorial,
     [[maybe_unused]] const ShaderProgram &pointLight,
     const ShaderProgram &lighting, const TextureLibrary &textures) const
 {
@@ -77,7 +57,6 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
 
     m_mat.setShaderUniforms(lighting);
 
-    // lighting.setVec3("objectColor", m_color);
     lighting.setInt("filterMode", static_cast<int>(filterMode));
     glm::vec2 texelSize = useTexture
         ? glm::vec2(1.0f / static_cast<float>(texture->size.x),
@@ -95,10 +74,6 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
     }
 
     glBindVertexArray(VAO);
-    if (!useIndices) {
-        glDrawArrays(GL_TRIANGLES, 0, indexCount);
-    } else {
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-    }
+    glDrawArrays(GL_TRIANGLES, 0, indexCount);
     glBindVertexArray(0);
 }

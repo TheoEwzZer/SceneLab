@@ -33,12 +33,17 @@ class Light : public RenderableObject {
         const ShaderProgram &lighting,
         const TextureLibrary &textures) const override;
 
+    void setIntensity(float intensity);
+    float getIntensity() const { return m_intensity; }
+
 protected:
     void init(const std::vector<float> &vertices,
         const std::vector<unsigned int> &indices);
+    void updateEmissive(); // Sync emissive with color * intensity
 
     glm::vec3 m_color = {1.0,1.0,1.0};
     glm::vec3 m_direction = {-1.0,-1.0,-1.0};
+    float m_intensity = 1000.0f; // Light intensity for path tracing
     float m_kc;
     float m_kl;
     float m_kq;

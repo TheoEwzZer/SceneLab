@@ -62,5 +62,5 @@ public:
 
     void renderHierarchyUI(std::vector<Node *> &selectedNodes,
         bool isMultiSelectKeyPressed,
-        std::function<bool(Node *)> canAddToSelection);
+        std::function<bool(Node *)> canAddToSelection, bool *p_open = nullptr);
 };
