@@ -78,7 +78,7 @@ public:
 
     void updateMessageTimer(float deltaTime);
 
-    void renderUI();
+    void renderUI(bool *p_open = nullptr);
 
     bool isExportInProgress() const;
 

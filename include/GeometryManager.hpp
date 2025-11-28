@@ -17,7 +17,7 @@ public:
     void initGeometryWindow(std::function<void()> onObjectCreated);
 
     // Render geometry UI
-    void renderUI();
+    void renderUI(bool *p_open = nullptr);
 
     // Access to the window for external configuration
     GeometryImguiWindow &getGeometryWindow() { return m_geometryWindow; }

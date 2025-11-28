@@ -1423,7 +1423,8 @@ const std::vector<int> &PathTracingRenderer::getCubemapHandles() const
     return m_textureLibrary.getCubemapHandles();
 }
 
-const TextureResource *PathTracingRenderer::getTextureResource(int handle) const
+const TextureResource *PathTracingRenderer::getTextureResource(
+    int handle) const
 {
     return m_textureLibrary.getTextureResource(handle);
 }

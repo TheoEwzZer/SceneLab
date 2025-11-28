@@ -18,11 +18,12 @@ struct MaterialProperties {
 
 class GeometryImguiWindow {
 public:
-    void render();
+    void render(bool *p_open = nullptr);
 
     std::function<void(float radius, int sectors, int stacks)> onSpawnSphere;
     std::function<void(float size)> onSpawnCube;
-    std::function<void(float radius, float height, int sectors)> onSpawnCylinder;
+    std::function<void(float radius, float height, int sectors)>
+        onSpawnCylinder;
     std::function<void(float width, float height, const glm::vec3 &normal)>
         onSpawnPlane;
     std::function<void(const std::string &objName, const std::string &objPath)>

@@ -33,6 +33,17 @@ class App {
 
     bool leftShiftPressed = false;
 
+    // Menu bar state
+    bool m_showAboutPopup = false;
+    bool m_showGeometryWindow = true;
+    bool m_showTransformWindow = true;
+    bool m_showRayTracingWindow = true;
+    bool m_showTextureWindow = true;
+    bool m_showCameraWindow = true;
+    bool m_showImageWindow = true;
+    bool m_showVectorWindow = true;
+    bool m_showHierarchyWindow = true;
+
 private:
     Window m_window;
     SceneGraph m_sceneGraph;
@@ -47,7 +58,10 @@ private:
     void init();
     void update();
     void render();
+    void renderMainMenuBar();
     void updateCursor();
+    void switchRenderer();
+    void resetScene();
 
     Vect::UIDrawer vectorial_ui;
 

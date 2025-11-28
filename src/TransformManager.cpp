@@ -31,6 +31,20 @@ void TransformManager::addToSelection(SceneGraph::Node *node)
     }
 }
 
+void TransformManager::selectAll()
+{
+    m_selectedNodes.clear();
+    // Select all root-level children (not the root itself, and not nested
+    // children to avoid parent-child conflicts)
+    auto *root = m_sceneGraph.getRoot();
+    for (int i = 0; i < root->getChildCount(); ++i) {
+        auto *child = root->getChild(i);
+        if (child && child->getData().rendererId >= 0) {
+            m_selectedNodes.push_back(child);
+        }
+    }
+}
+
 bool TransformManager::isNodeSelected(SceneGraph::Node *node) const
 {
     return std::find(m_selectedNodes.begin(), m_selectedNodes.end(), node)
@@ -53,13 +67,18 @@ bool TransformManager::canAddToSelection(SceneGraph::Node *nodeToAdd)
     return true;
 }
 
-void TransformManager::renderTransformUI(bool leftShiftPressed)
+void TransformManager::renderTransformUI(
+    bool leftShiftPressed, bool *p_openTransform, bool *p_openHierarchy)
 {
     // Render scene graph hierarchy with selection
-    m_sceneGraph.renderHierarchyUI(
-        m_selectedNodes, leftShiftPressed, [this](SceneGraph::Node *node) {
-            return this->canAddToSelection(node);
-        });
+    if (!p_openHierarchy || *p_openHierarchy) {
+        m_sceneGraph.renderHierarchyUI(
+            m_selectedNodes, leftShiftPressed,
+            [this](SceneGraph::Node *node) {
+                return this->canAddToSelection(node);
+            },
+            p_openHierarchy);
+    }
 
     // Only early-exit if there are no objects at all
     if (m_sceneGraph.getRoot()->getChildCount() == 0
@@ -67,7 +86,14 @@ void TransformManager::renderTransformUI(bool leftShiftPressed)
         return;
     }
 
-    ImGui::Begin("Transform");
+    if (p_openTransform && !*p_openTransform) {
+        return;
+    }
+
+    if (!ImGui::Begin("Transform", p_openTransform)) {
+        ImGui::End();
+        return;
+    }
 
     if (m_selectedNodes.empty()) {
         ImGui::Text("No objects selected");
@@ -273,9 +299,16 @@ void TransformManager::renderTransformUI(bool leftShiftPressed)
     ImGui::End();
 }
 
-void TransformManager::renderRayTracingUI()
+void TransformManager::renderRayTracingUI(bool *p_open)
 {
-    ImGui::Begin("Ray Tracing");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Ray Tracing", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     if (m_selectedNodes.empty()) {
         ImGui::Text("Select an object to edit material properties");

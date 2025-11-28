@@ -381,72 +381,11 @@ void App::init()
     // Register camera controller input callbacks
     m_cameraController->registerInputCallbacks();
 
-    // Reguster change renderer callback on the r key
-    m_renderer->addKeyCallback(GLFW_KEY_R, GLFW_PRESS, [this]() {
-        // Extract all objects from the old renderer before destroying it
-        auto objects = m_renderer->extractAllObjects();
+    // Register change renderer callback on the R key
+    m_renderer->addKeyCallback(
+        GLFW_KEY_R, GLFW_PRESS, [this]() { switchRenderer(); });
 
-        // Create new renderer
-        if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
-            m_renderer = std::make_unique<PathTracingRenderer>(m_window);
-            std::cout << "Switching to Pathtracing" << std::endl;
-        } else {
-            m_renderer = std::make_unique<RasterizationRenderer>(m_window);
-            std::cout << "Switching to Rasterization" << std::endl;
-        }
-
-        // Re-register all objects with the new renderer
-        // Update rendererId in all GameObjects by using old rendererId as
-        // index into objects vector
-        m_sceneGraph.traverse([&](GameObject &obj, int depth) {
-            (void)depth;
-            if (obj.rendererId >= 0
-                && obj.rendererId < static_cast<int>(objects.size())) {
-                auto &renderObj = objects[obj.rendererId];
-                if (renderObj) {
-                    obj.rendererId
-                        = m_renderer->registerObject(std::move(renderObj));
-                } else {
-                    obj.rendererId = -1;
-                }
-            }
-        });
-
-        // Update transforms for all re-registered objects
-        m_sceneGraph.traverseWithTransform(
-            [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
-                (void)depth;
-                if (obj.rendererId >= 0) {
-                    m_renderer->updateTransform(
-                        obj.rendererId, worldTransform);
-                }
-            });
-
-        // Recreate TextureManager with the new renderer
-        if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
-            m_textureManager = std::make_unique<TextureManager>(m_sceneGraph,
-                *m_transformManager,
-                dynamic_cast<RasterizationRenderer &>(*m_renderer));
-        } else {
-            m_textureManager.reset();
-        }
-
-        // Re-register renderer callbacks
-        m_renderer->setCameraOverlayCallback(
-            [this](int id, const Camera &camera, ImVec2 imagePos,
-                ImVec2 imageSize, bool isHovered) {
-                m_transformManager->renderCameraGizmo(
-                    id, camera, imagePos, imageSize, isHovered);
-            });
-
-        m_renderer->setBoundingBoxDrawCallback(
-            [this]() { m_transformManager->drawBoundingBoxes(); });
-
-        // Recreate camera views for all existing cameras
-        for (int camId : m_camera.getCameraIds()) {
-            m_renderer->createCameraViews(camId, 640, 360);
-        }
-    }); // Register left shift key for multi-selection
+    // Register left shift key for multi-selection
     m_renderer->addKeyCallback(
         GLFW_KEY_LEFT_SHIFT, GLFW_PRESS, [&]() { leftShiftPressed = true; });
     m_renderer->addKeyCallback(GLFW_KEY_LEFT_SHIFT, GLFW_RELEASE,
@@ -483,6 +422,85 @@ void App::update()
     m_cameraController->update();
 }
 
+void App::switchRenderer()
+{
+    // Extract all objects from the old renderer before destroying it
+    auto objects = m_renderer->extractAllObjects();
+
+    // Create new renderer
+    if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
+        m_renderer = std::make_unique<PathTracingRenderer>(m_window);
+    } else {
+        m_renderer = std::make_unique<RasterizationRenderer>(m_window);
+    }
+
+    // Re-register all objects with the new renderer
+    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+        (void)depth;
+        if (obj.rendererId >= 0
+            && obj.rendererId < static_cast<int>(objects.size())) {
+            auto &renderObj = objects[obj.rendererId];
+            if (renderObj) {
+                obj.rendererId
+                    = m_renderer->registerObject(std::move(renderObj));
+            } else {
+                obj.rendererId = -1;
+            }
+        }
+    });
+
+    // Update transforms for all re-registered objects
+    m_sceneGraph.traverseWithTransform(
+        [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+            (void)depth;
+            if (obj.rendererId >= 0) {
+                m_renderer->updateTransform(obj.rendererId, worldTransform);
+            }
+        });
+
+    // Recreate TextureManager with the new renderer
+    if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
+        m_textureManager = std::make_unique<TextureManager>(m_sceneGraph,
+            *m_transformManager,
+            dynamic_cast<RasterizationRenderer &>(*m_renderer));
+    } else {
+        m_textureManager.reset();
+    }
+
+    // Re-register renderer callbacks
+    m_renderer->setCameraOverlayCallback(
+        [this](int id, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize,
+            bool isHovered) {
+            m_transformManager->renderCameraGizmo(
+                id, camera, imagePos, imageSize, isHovered);
+        });
+
+    m_renderer->setBoundingBoxDrawCallback(
+        [this]() { m_transformManager->drawBoundingBoxes(); });
+
+    // Recreate camera views for all existing cameras
+    for (int camId : m_camera.getCameraIds()) {
+        m_renderer->createCameraViews(camId, 640, 360);
+    }
+}
+
+void App::resetScene()
+{
+    m_transformManager->clearSelection();
+
+    // Remove all children from root
+    auto *root = m_sceneGraph.getRoot();
+    while (root->getChildCount() > 0) {
+        auto *child = root->getChild(0);
+        if (child->getData().rendererId >= 0) {
+            m_renderer->removeObject(child->getData().rendererId);
+        }
+        root->removeChild(child);
+    }
+
+    m_cameraController->resetAllCameraPoses();
+}
+
 // Move l'objet dans le vecteur
 GameObject &App::registerObject(GameObject &obj)
 {
@@ -506,15 +524,121 @@ GameObject &App::registerObject(GameObject &obj)
     return m_transformManager->getSelectedNodes().back()->getData();
 }
 
+void App::renderMainMenuBar()
+{
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+                resetScene();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Quit", "Alt+F4")) {
+                glfwSetWindowShouldClose(m_renderer->getWindow(), GLFW_TRUE);
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Edit")) {
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete", "Del")) {
+                m_transformManager->deleteSelectedObjects();
+            }
+            if (ImGui::MenuItem("Select All", "Ctrl+A")) {
+                m_transformManager->selectAll();
+            }
+            if (ImGui::MenuItem("Deselect All", "Escape")) {
+                m_transformManager->clearSelection();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View")) {
+            bool isPathTracing
+                = dynamic_cast<PathTracingRenderer *>(m_renderer.get())
+                != nullptr;
+            if (ImGui::MenuItem(isPathTracing ? "Switch to Rasterization"
+                                              : "Switch to Path Tracing",
+                    "R")) {
+                switchRenderer();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Toggle Bounding Boxes", "B")) {
+                m_transformManager->toggleBoundingBoxes();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reset Camera")) {
+                m_cameraController->resetAllCameraPoses();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Window")) {
+            ImGui::MenuItem("Hierarchy", nullptr, &m_showHierarchyWindow);
+            ImGui::MenuItem("Transform", nullptr, &m_showTransformWindow);
+            ImGui::MenuItem("Ray Tracing", nullptr, &m_showRayTracingWindow);
+            ImGui::Separator();
+            ImGui::MenuItem("Geometry", nullptr, &m_showGeometryWindow);
+            ImGui::MenuItem("Texture", nullptr, &m_showTextureWindow);
+            ImGui::MenuItem("Camera", nullptr, &m_showCameraWindow);
+            ImGui::MenuItem("Image", nullptr, &m_showImageWindow);
+            ImGui::MenuItem("Vector Drawing", nullptr, &m_showVectorWindow);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
+            if (ImGui::MenuItem("About SceneLab")) {
+                m_showAboutPopup = true;
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+
+    // About popup
+    if (m_showAboutPopup) {
+        ImGui::OpenPopup("About SceneLab");
+        m_showAboutPopup = false;
+    }
+
+    if (ImGui::BeginPopupModal(
+            "About SceneLab", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("SceneLab");
+        ImGui::Separator();
+        ImGui::Text("A 3D/2D scene editor with OpenGL");
+        ImGui::Text("Supports rasterization and path tracing rendering");
+        ImGui::Spacing();
+        ImGui::Text("Controls:");
+        ImGui::BulletText("R - Switch renderer");
+        ImGui::BulletText("B - Toggle bounding boxes");
+        ImGui::BulletText("W/E/R - Translate/Rotate/Scale gizmo");
+        ImGui::BulletText("Delete - Delete selected object");
+        ImGui::BulletText("Shift+Click - Multi-select");
+        ImGui::Spacing();
+        if (ImGui::Button("Close", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void App::render()
 {
     m_renderer->beginFrame();
 
-    vectorial_ui.renderUI(this);
+    // Main menu bar
+    renderMainMenuBar();
 
-    m_transformManager->renderTransformUI(leftShiftPressed);
-    m_transformManager->renderRayTracingUI();
-    m_image->renderUI();
+    // Vector drawing UI
+    vectorial_ui.renderUI(this, &m_showVectorWindow);
+
+    // Transform and hierarchy UI
+    m_transformManager->renderTransformUI(
+        leftShiftPressed, &m_showTransformWindow, &m_showHierarchyWindow);
+    m_transformManager->renderRayTracingUI(&m_showRayTracingWindow);
+
+    // Image UI
+    m_image->renderUI(&m_showImageWindow);
 
     glm::vec4 paletteColor;
     if (m_image->consumeSelectedPaletteColor(paletteColor)) {
@@ -522,67 +646,71 @@ void App::render()
     }
 
     // Geometry UI
-    m_geometryManager->renderUI();
+    m_geometryManager->renderUI(&m_showGeometryWindow);
 
+    // Texture UI
     if (m_textureManager) {
-        m_textureManager->renderUI();
-    } else if (auto *ptRenderer
-               = dynamic_cast<PathTracingRenderer *>(m_renderer.get())) {
-        // Simplified Texture window for path tracing mode
-        ImGui::Begin("Texture");
+        m_textureManager->renderUI(&m_showTextureWindow);
+    } else if (m_showTextureWindow) {
+        if (auto *ptRenderer
+            = dynamic_cast<PathTracingRenderer *>(m_renderer.get())) {
+            // Simplified Texture window for path tracing mode
+            if (ImGui::Begin("Texture", &m_showTextureWindow)) {
+                ImGui::TextDisabled(
+                    "Texture mapping not available in path tracing");
 
-        ImGui::TextDisabled("Texture mapping not available in path tracing");
+                ImGui::SeparatorText("Tone Mapping");
+                int toneIndex
+                    = static_cast<int>(ptRenderer->getToneMappingMode());
+                if (ImGui::Combo("Operator", &toneIndex,
+                        PathTracingRenderer::TONEMAP_LABELS.data(),
+                        static_cast<int>(
+                            PathTracingRenderer::TONEMAP_LABELS.size()))) {
+                    ptRenderer->setToneMappingMode(
+                        static_cast<ToneMappingMode>(toneIndex));
+                }
+                float exposure = ptRenderer->getToneMappingExposure();
+                if (ImGui::SliderFloat(
+                        "Exposure", &exposure, 0.1f, 5.0f, "%.2f")) {
+                    ptRenderer->setToneMappingExposure(exposure);
+                }
 
-        ImGui::SeparatorText("Tone Mapping");
-        int toneIndex = static_cast<int>(ptRenderer->getToneMappingMode());
-        if (ImGui::Combo("Operator", &toneIndex,
-                PathTracingRenderer::TONEMAP_LABELS.data(),
-                static_cast<int>(
-                    PathTracingRenderer::TONEMAP_LABELS.size()))) {
-            ptRenderer->setToneMappingMode(
-                static_cast<ToneMappingMode>(toneIndex));
-        }
-        float exposure = ptRenderer->getToneMappingExposure();
-        if (ImGui::SliderFloat("Exposure", &exposure, 0.1f, 5.0f, "%.2f")) {
-            ptRenderer->setToneMappingExposure(exposure);
-        }
-
-        ImGui::SeparatorText("Cubemap / Environment");
-        const auto &handles = ptRenderer->getCubemapHandles();
-        if (handles.empty()) {
-            ImGui::TextDisabled("No cubemaps available");
-        } else {
-            std::vector<const char *> names;
-            int activeIdx = 0;
-            int activeHandle = ptRenderer->getActiveCubemap();
-            for (size_t i = 0; i < handles.size(); ++i) {
-                if (auto *res = ptRenderer->getTextureResource(handles[i])) {
-                    names.push_back(res->name.c_str());
-                    if (handles[i] == activeHandle) {
-                        activeIdx = static_cast<int>(i);
+                ImGui::SeparatorText("Cubemap / Environment");
+                const auto &handles = ptRenderer->getCubemapHandles();
+                if (handles.empty()) {
+                    ImGui::TextDisabled("No cubemaps available");
+                } else {
+                    std::vector<const char *> names;
+                    int activeIdx = 0;
+                    int activeHandle = ptRenderer->getActiveCubemap();
+                    for (size_t i = 0; i < handles.size(); ++i) {
+                        if (auto *res
+                            = ptRenderer->getTextureResource(handles[i])) {
+                            names.push_back(res->name.c_str());
+                            if (handles[i] == activeHandle) {
+                                activeIdx = static_cast<int>(i);
+                            }
+                        }
+                    }
+                    if (!names.empty()) {
+                        if (ImGui::Combo("Skybox", &activeIdx, names.data(),
+                                static_cast<int>(names.size()))) {
+                            ptRenderer->setActiveCubemap(handles[activeIdx]);
+                        }
                     }
                 }
             }
-            if (!names.empty()) {
-                if (ImGui::Combo("Skybox", &activeIdx, names.data(),
-                        static_cast<int>(names.size()))) {
-                    ptRenderer->setActiveCubemap(handles[activeIdx]);
-                }
-            }
+            ImGui::End();
         }
-
-        ImGui::End();
     }
 
     // Camera Manager UI
-    m_cameraController->renderCameraManagerUI();
+    m_cameraController->renderCameraManagerUI(&m_showCameraWindow);
 
     m_sceneGraph.traverseWithTransform(
         [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
             (void)depth;
             if (obj.hasTransformChanged()) {
-                std::cout << "Updating transform for object ID "
-                          << obj.rendererId << std::endl;
                 m_renderer->updateTransform(obj.rendererId, worldTransform);
                 obj.setHasMoved(false);
             }

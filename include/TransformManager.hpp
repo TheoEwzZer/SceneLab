@@ -23,6 +23,7 @@ public:
     void clearSelection();
     void selectNode(SceneGraph::Node *node);
     void addToSelection(SceneGraph::Node *node);
+    void selectAll();
     bool isNodeSelected(SceneGraph::Node *node) const;
 
     const std::vector<SceneGraph::Node *> &getSelectedNodes() const
@@ -33,8 +34,9 @@ public:
     bool canAddToSelection(SceneGraph::Node *nodeToAdd);
 
     // Transform UI
-    void renderTransformUI(bool leftShiftPressed);
-    void renderRayTracingUI();
+    void renderTransformUI(bool leftShiftPressed,
+        bool *p_openTransform = nullptr, bool *p_openHierarchy = nullptr);
+    void renderRayTracingUI(bool *p_open = nullptr);
     void renderCameraGizmo(int cameraId, const Camera &camera, ImVec2 imagePos,
         ImVec2 imageSize, bool isHovered);
 

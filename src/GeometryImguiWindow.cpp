@@ -5,9 +5,16 @@
 #include <filesystem>
 #include <format>
 
-void GeometryImguiWindow::render()
+void GeometryImguiWindow::render(bool *p_open)
 {
-    ImGui::Begin("Geometry");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Geometry", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Primitives");
 

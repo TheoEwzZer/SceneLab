@@ -49,18 +49,18 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
         }
     };
 
-    m_geometryWindow.onSpawnSphere
-        = [this, onObjectCreated](float radius, int sectors, int stacks) {
-              GameObject new_obj;
+    m_geometryWindow.onSpawnSphere = [this, onObjectCreated](float radius,
+                                         int sectors, int stacks) {
+        GameObject new_obj;
 
-              auto object = std::make_unique<AnalyticalSphere>(
-                  radius, sectors, stacks, glm::vec3(1.0f));
+        auto object = std::make_unique<AnalyticalSphere>(
+            radius, sectors, stacks, glm::vec3(1.0f));
 
-              // Default material properties
-              object->setEmissive(glm::vec3(0.0f));
-              object->setPercentSpecular(0.0f);
-              object->setRoughness(0.5f);
-              object->setSpecularColor(glm::vec3(1.0f));
+        // Default material properties
+        object->setEmissive(glm::vec3(0.0f));
+        object->setPercentSpecular(0.0f);
+        object->setRoughness(0.5f);
+        object->setSpecularColor(glm::vec3(1.0f));
 
         new_obj.rendererId = m_renderer->registerObject(std::move(object));
         new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
@@ -81,20 +81,20 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
         }
     };
 
-    m_geometryWindow.onSpawnCylinder
-        = [this, onObjectCreated](float radius, float height, int sectors) {
-              GameObject new_obj;
-              auto data { GeometryGenerator::generateCylinder(
-                  radius, height, sectors) };
+    m_geometryWindow.onSpawnCylinder = [this, onObjectCreated](float radius,
+                                           float height, int sectors) {
+        GameObject new_obj;
+        auto data { GeometryGenerator::generateCylinder(
+            radius, height, sectors) };
 
-              auto object = std::make_unique<Object3D>(
-                  data.vertices, std::vector<unsigned int> {}, glm::vec3(1.0f));
+        auto object = std::make_unique<Object3D>(
+            data.vertices, std::vector<unsigned int> {}, glm::vec3(1.0f));
 
-              // Default material properties
-              object->setEmissive(glm::vec3(0.0f));
-              object->setPercentSpecular(0.0f);
-              object->setRoughness(0.5f);
-              object->setSpecularColor(glm::vec3(1.0f));
+        // Default material properties
+        object->setEmissive(glm::vec3(0.0f));
+        object->setPercentSpecular(0.0f);
+        object->setRoughness(0.5f);
+        object->setSpecularColor(glm::vec3(1.0f));
 
         new_obj.rendererId = m_renderer->registerObject(std::move(object));
         new_obj.setPosition({ 0.0f, 0.0f, 0.0f });
@@ -114,8 +114,8 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
         }
     };
 
-    m_geometryWindow.onSpawnPlane = [this, onObjectCreated](
-                                        float width, float height,
+    m_geometryWindow.onSpawnPlane = [this, onObjectCreated](float width,
+                                        float height,
                                         const glm::vec3 &normal) {
         GameObject new_obj;
 
@@ -206,4 +206,7 @@ void GeometryManager::initGeometryWindow(std::function<void()> onObjectCreated)
     };
 }
 
-void GeometryManager::renderUI() { m_geometryWindow.render(); }
+void GeometryManager::renderUI(bool *p_open)
+{
+    m_geometryWindow.render(p_open);
+}

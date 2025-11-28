@@ -473,9 +473,16 @@ void Image::captureAndWriteCurrentFrame(GLFWwindow *window)
     }
 }
 
-void Image::renderUI()
+void Image::renderUI(bool *p_open)
 {
-    ImGui::Begin("Image");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Image", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Image Import");
     ImGui::Text("Drag and drop image files into the window");

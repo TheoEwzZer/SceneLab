@@ -15,9 +15,16 @@ TextureManager::TextureManager(SceneGraph &sceneGraph,
 {
 }
 
-void TextureManager::renderUI()
+void TextureManager::renderUI(bool *p_open)
 {
-    ImGui::Begin("Texture");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Texture", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     renderSelectionPanel();
 

@@ -12,7 +12,7 @@ public:
     TextureManager(SceneGraph &sceneGraph, TransformManager &transformManager,
         RasterizationRenderer &renderer);
 
-    void renderUI();
+    void renderUI(bool *p_open = nullptr);
 
 private:
     SceneGraph &m_sceneGraph;

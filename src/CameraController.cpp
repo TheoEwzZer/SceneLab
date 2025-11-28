@@ -107,9 +107,16 @@ void CameraController::handleMouseMovement(double x, double y, bool isRotating)
     }
 }
 
-void CameraController::renderCameraManagerUI()
+void CameraController::renderCameraManagerUI(bool *p_open)
 {
-    ImGui::Begin("Camera");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Camera", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     // Create / Destroy
     if (ImGui::Button("Create Camera")) {

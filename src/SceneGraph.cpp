@@ -151,9 +151,12 @@ void SceneGraph::traverseWithTransform(
 
 void SceneGraph::renderHierarchyUI(std::vector<Node *> &selectedNodes,
     bool isMultiSelectKeyPressed,
-    std::function<bool(Node *)> canAddToSelection)
+    std::function<bool(Node *)> canAddToSelection, bool *p_open)
 {
-    ImGui::Begin("Hierarchy");
+    if (!ImGui::Begin("Hierarchy", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     traverse([&](GameObject &obj, int depth) {
         std::string label = std::string(depth * 2, ' ');

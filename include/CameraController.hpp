@@ -17,7 +17,7 @@ public:
     void update();
 
     // Camera UI
-    void renderCameraManagerUI();
+    void renderCameraManagerUI(bool *p_open = nullptr);
 
     // Reset all camera poses
     void resetAllCameraPoses();
