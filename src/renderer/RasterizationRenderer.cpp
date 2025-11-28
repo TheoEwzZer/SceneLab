@@ -679,7 +679,8 @@ RenderableObject &RasterizationRenderer::getRenderable(int objectId) const
     throw std::invalid_argument("getRendrable: invalid ObjectID");
 }
 
-void RasterizationRenderer::setObjectMaterial(int objectId, const Material &mat)
+void RasterizationRenderer::assignMaterialToObject(
+    const int objectId, Material &mat) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return;

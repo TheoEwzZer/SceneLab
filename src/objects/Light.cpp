@@ -75,36 +75,36 @@ void Light::useShader(ShaderProgram &shader) const {
 
 void Light::updateEmissive()
 {
+    // For rasterization: use normalized color
     m_mat.m_emissiveColor = m_color;
+    // For path tracing: use color * intensity
+    m_emissive = m_color * m_intensity;
 }
 
 void Light::setIntensity(float intensity)
 {
     m_intensity = intensity;
-    m_color = m_color * intensity;
     updateEmissive();
 }
 
-void Light::setDirectional(const glm::vec3 &color, float intensity)
+void Light::setDirectional(const glm::vec3 &color)
 {
     m_color = color;
     m_type = Directional;
-    setIntensity(intensity);
     updateEmissive();
 }
 
-void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq, float intensity)
+void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq)
 {
     m_color = color;
     m_kc = kc;
     m_kl = kl;
     m_kq = kq;
     m_type = Point;
-    setIntensity(intensity);
     updateEmissive();
 }
 
-void Light::setSpot(const glm::vec3 &color, float ke, float kl, float kq, float p, float intensity)
+void Light::setSpot(const glm::vec3 &color, float ke, float kl, float kq, float p)
 {
     m_color = color;
     m_kc = ke;
@@ -112,7 +112,6 @@ void Light::setSpot(const glm::vec3 &color, float ke, float kl, float kq, float 
     m_kq = kq;
     m_p = p;
     m_type = Spot;
-    setIntensity(intensity);
     updateEmissive();
 }
 
@@ -183,7 +182,7 @@ void Light::draw([[maybe_unused]] const ShaderProgram &vectorial,
         && texture->target == TextureTarget::Texture2D;
     lighting.setBool("useTexture", useTexture);
 
-    m_mat.setRasterShaderUniforms(lighting);
+    m_mat.setShaderUniforms(lighting);
 
     lighting.setInt("filterMode", static_cast<int>(filterMode));
     glm::vec2 texelSize = useTexture

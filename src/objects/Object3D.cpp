@@ -75,7 +75,7 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
         && texture->target == TextureTarget::Texture2D;
     lighting.setBool("useTexture", useTexture);
 
-    m_mat.setRasterShaderUniforms(lighting);
+    m_mat.setShaderUniforms(lighting);
 
     // lighting.setVec3("objectColor", m_color);
     lighting.setInt("filterMode", static_cast<int>(filterMode));
