@@ -90,6 +90,13 @@ public:
             GL_FALSE, glm::value_ptr(mat4));
     }
 
+    void setMat3(const std::string &uniformName, glm::mat3 mat3) const
+    {
+        glUniformMatrix3fv(
+            glGetUniformLocation(m_shaderProgram, uniformName.c_str()), 1,
+            GL_FALSE, glm::value_ptr(mat3));
+    }
+
     void setBool(const std::string &uniformName, const bool value) const
     {
         glUniform1i(

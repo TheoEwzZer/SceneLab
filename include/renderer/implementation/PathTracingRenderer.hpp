@@ -18,6 +18,7 @@
 
 struct Triangle {
     glm::vec3 v0, v1, v2;
+    glm::vec3 normal;
     glm::vec3 color;
     glm::vec3 emissive;
     float percentSpecular;
@@ -39,7 +40,9 @@ private:
     std::vector<float> texData;
 
     std::vector<Triangle> m_triangles;
-    GLuint m_triangleTexture = 0;
+    GLuint m_triangleGeomTexture = 0;
+    GLuint m_triangleMaterialTexture = 0;
+    int m_lastTriangleTextureHeight = 0;
 
     struct ObjectData {
         std::unique_ptr<RenderableObject> renderObject;
@@ -49,6 +52,7 @@ private:
     };
 
     std::vector<ObjectData> m_objects;
+    bool m_trianglesDirty = false;
 
     void rebuildTriangleArray();
 

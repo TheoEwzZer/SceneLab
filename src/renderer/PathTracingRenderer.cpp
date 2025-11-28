@@ -81,32 +81,40 @@ PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
         texData.push_back(0.0f);
     }
 
-    glGenTextures(1, &m_triangleTexture);
-    glBindTexture(GL_TEXTURE_2D, m_triangleTexture);
+    // Create geometry texture (width=3: v0, v1, v2, normal)
+    glGenTextures(1, &m_triangleGeomTexture);
+    glBindTexture(GL_TEXTURE_2D, m_triangleGeomTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 3, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    int width = 5;
-    int height = m_triangles.size();
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
-        GL_FLOAT, texData.data());
-
-    // texture parameters
+    // Create material texture (width=3: color, emissive, specular)
+    glGenTextures(1, &m_triangleMaterialTexture);
+    glBindTexture(GL_TEXTURE_2D, m_triangleMaterialTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA32F, 3, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     m_pathTracingShader.use();
-    m_pathTracingShader.setInt("trianglesTex", m_triangleTexture);
-    m_pathTracingShader.setInt(
-        "numTriangles", static_cast<int>(m_triangles.size()));
+    m_pathTracingShader.setInt("triangleGeomTex", 1);
+    m_pathTracingShader.setInt("triangleMaterialTex", 2);
+    m_pathTracingShader.setInt("numTriangles", 0);
 }
 
 PathTracingRenderer::~PathTracingRenderer()
 {
     cleanupAccumulationBuffers();
-    if (m_triangleTexture != 0) {
-        glDeleteTextures(1, &m_triangleTexture);
+    if (m_triangleGeomTexture != 0) {
+        glDeleteTextures(1, &m_triangleGeomTexture);
+    }
+    if (m_triangleMaterialTexture != 0) {
+        glDeleteTextures(1, &m_triangleMaterialTexture);
     }
 }
 
@@ -142,7 +150,7 @@ int PathTracingRenderer::registerObject(
     m_objects[objectId].triangleStartIndex = 0;
     m_objects[objectId].triangleCount = 0;
 
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 
     return objectId;
 }
@@ -160,7 +168,7 @@ void PathTracingRenderer::updateTransform(
 
     m_objects[objectId].transform = modelMatrix;
 
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 void PathTracingRenderer::removeObject(const int objectId)
@@ -179,7 +187,7 @@ void PathTracingRenderer::removeObject(const int objectId)
 
     m_freeSlots.push_back(objectId);
 
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 std::vector<std::unique_ptr<RenderableObject>>
@@ -197,7 +205,7 @@ PathTracingRenderer::extractAllObjects()
     m_objects.clear();
     m_freeSlots.clear();
     m_triangles.clear();
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 
     return objects;
 }
@@ -212,7 +220,7 @@ void PathTracingRenderer::setObjectColor(int objectId, const glm::vec3 &color)
     }
 
     m_objects[objectId].renderObject->setColor(color);
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 glm::vec3 PathTracingRenderer::getObjectColor(int objectId) const
@@ -238,7 +246,7 @@ void PathTracingRenderer::setObjectEmissive(
     }
 
     m_objects[objectId].renderObject->setEmissive(emissive);
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 glm::vec3 PathTracingRenderer::getObjectEmissive(int objectId) const
@@ -263,7 +271,7 @@ void PathTracingRenderer::setObjectPercentSpecular(int objectId, float percent)
     }
 
     m_objects[objectId].renderObject->setPercentSpecular(percent);
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 float PathTracingRenderer::getObjectPercentSpecular(int objectId) const
@@ -288,7 +296,7 @@ void PathTracingRenderer::setObjectRoughness(int objectId, float roughness)
     }
 
     m_objects[objectId].renderObject->setRoughness(roughness);
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 float PathTracingRenderer::getObjectRoughness(int objectId) const
@@ -314,7 +322,7 @@ void PathTracingRenderer::setObjectSpecularColor(
     }
 
     m_objects[objectId].renderObject->setSpecularColor(color);
-    rebuildTriangleArray();
+    m_trianglesDirty = true;
 }
 
 glm::vec3 PathTracingRenderer::getObjectSpecularColor(int objectId) const
@@ -494,6 +502,16 @@ void PathTracingRenderer::destroyCameraViews(const int id)
 void PathTracingRenderer::renderCameraViews(
     const Camera &cam, CameraView &view)
 {
+    // Flush deferred triangle rebuild if needed
+    if (m_trianglesDirty) {
+        rebuildTriangleArray();
+        m_trianglesDirty = false;
+        // Reset accumulation for all camera views since scene geometry changed
+        for (auto &[id, cameraView] : m_cameraViews) {
+            resetCameraAccumulation(cameraView);
+        }
+    }
+
     // Save current state
     GLint previousFBO;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO);
@@ -515,13 +533,25 @@ void PathTracingRenderer::renderCameraViews(
     // Render pathtraced content
     m_pathTracingShader.use();
     m_pathTracingShader.setVec3("viewPos", cam.getPosition());
-    glm::vec3 rotationRadians = glm::radians(cam.getRotation());
-    m_pathTracingShader.setVec3("viewRotation", rotationRadians);
+
+    // Precompute rotation matrix on CPU (avoids sin/cos per pixel in shader)
+    glm::vec3 rot = glm::radians(cam.getRotation());
+    float cp = std::cos(rot.x), sp = std::sin(rot.x); // pitch
+    float cy = std::cos(rot.y), sy = std::sin(rot.y); // yaw
+    float cr = std::cos(rot.z), sr = std::sin(rot.z); // roll
+    glm::mat3 rotX(1, 0, 0, 0, cp, -sp, 0, sp, cp);
+    glm::mat3 rotY(cy, 0, sy, 0, 1, 0, -sy, 0, cy);
+    glm::mat3 rotZ(cr, -sr, 0, sr, cr, 0, 0, 0, 1);
+    glm::mat3 viewRotMat = rotZ * rotY * rotX;
+    m_pathTracingShader.setMat3("viewRotationMatrix", viewRotMat);
     float aspectRatio = (view.size.y > 0)
         ? (static_cast<float>(view.size.x) / static_cast<float>(view.size.y))
         : 1.0f;
     m_pathTracingShader.setFloat("aspectRatio", aspectRatio);
-    m_pathTracingShader.setFloat("fov", cam.getFov());
+    // Precompute focalLength on CPU (avoids radians/tan per pixel in shader)
+    float fovRadians = glm::radians(cam.getFov());
+    float focalLength = 1.0f / std::tan(fovRadians * 0.5f);
+    m_pathTracingShader.setFloat("focalLength", focalLength);
     m_pathTracingShader.setInt("iFrame", view.iFrame);
 
     // Bind the previous frame texture for accumulation
@@ -530,10 +560,16 @@ void PathTracingRenderer::renderCameraViews(
     glBindTexture(GL_TEXTURE_2D, view.accumulationTexture[previousBuffer]);
     m_pathTracingShader.setInt("previousFrame", 0);
 
-    // Bind triangle texture to texture unit 1
+    // Bind geometry texture to texture unit 1
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, m_triangleTexture);
-    m_pathTracingShader.setInt("trianglesTex", 1);
+    glBindTexture(GL_TEXTURE_2D, m_triangleGeomTexture);
+    m_pathTracingShader.setInt("triangleGeomTex", 1);
+
+    // Bind material texture to texture unit 2
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, m_triangleMaterialTexture);
+    m_pathTracingShader.setInt("triangleMaterialTex", 2);
+
     m_pathTracingShader.setInt(
         "numTriangles", static_cast<int>(m_triangles.size()));
 
@@ -923,6 +959,11 @@ void PathTracingRenderer::rebuildTriangleArray()
             t.v1 = glm::vec3(v1) / v1.w;
             t.v2 = glm::vec3(v2) / v2.w;
 
+            // Precompute face normal
+            glm::vec3 e0 = t.v1 - t.v0;
+            glm::vec3 e1 = t.v0 - t.v2;
+            t.normal = glm::normalize(glm::cross(e1, e0));
+
             t.color = color;
             t.emissive = emissive;
             t.percentSpecular = percentSpecular;
@@ -936,57 +977,82 @@ void PathTracingRenderer::rebuildTriangleArray()
             - objData.triangleStartIndex;
     }
 
-    // Layout: width=6, each row contains:
-    // [v0.xyz, v1.x] [v1.yz, v2.xy] [v2.z, color.xyz] [emissive.xyz,
-    // percentSpecular] [roughness, specularColor.xyz]
-    texData.clear();
-    texData.reserve(
-        m_triangles.size() * 6 * 4); // 6 pixels * 4 floats (RGBA) per triangle
+    // Create separate geometry and material texture data
+    // Geometry texture (width=3): v0, v1, v2, normal - used for all
+    // intersection tests Material texture (width=3): color, emissive, specular
+    // - only for closest hit
+    std::vector<float> geomData;
+    std::vector<float> materialData;
+    geomData.reserve(m_triangles.size() * 3 * 4);
+    materialData.reserve(m_triangles.size() * 3 * 4);
 
     for (const auto &t : m_triangles) {
-        // Pixel 0: v0 position
-        texData.push_back(t.v0.x);
-        texData.push_back(t.v0.y);
-        texData.push_back(t.v0.z);
-        texData.push_back(t.v1.x);
+        // Geometry texture: 3 pixels per triangle
+        // Pixel 0: [v0.xyz, v1.x]
+        geomData.push_back(t.v0.x);
+        geomData.push_back(t.v0.y);
+        geomData.push_back(t.v0.z);
+        geomData.push_back(t.v1.x);
 
-        // Pixel 1: v1 and v2 positions
-        texData.push_back(t.v1.y);
-        texData.push_back(t.v1.z);
-        texData.push_back(t.v2.x);
-        texData.push_back(t.v2.y);
+        // Pixel 1: [v1.yz, v2.xy]
+        geomData.push_back(t.v1.y);
+        geomData.push_back(t.v1.z);
+        geomData.push_back(t.v2.x);
+        geomData.push_back(t.v2.y);
 
-        // Pixel 2: v2.z and color
-        texData.push_back(t.v2.z);
-        texData.push_back(t.color.x);
-        texData.push_back(t.color.y);
-        texData.push_back(t.color.z);
+        // Pixel 2: [v2.z, normal.xyz]
+        geomData.push_back(t.v2.z);
+        geomData.push_back(t.normal.x);
+        geomData.push_back(t.normal.y);
+        geomData.push_back(t.normal.z);
 
-        // Pixel 3: emissive and percentSpecular
-        texData.push_back(t.emissive.x);
-        texData.push_back(t.emissive.y);
-        texData.push_back(t.emissive.z);
-        texData.push_back(t.percentSpecular);
+        // Material texture: 3 pixels per triangle
+        // Pixel 0: [color.xyz, percentSpecular]
+        materialData.push_back(t.color.x);
+        materialData.push_back(t.color.y);
+        materialData.push_back(t.color.z);
+        materialData.push_back(t.percentSpecular);
 
-        // Pixel 4: roughness and specularColor
-        texData.push_back(t.roughness);
-        texData.push_back(t.specularColor.x);
-        texData.push_back(t.specularColor.y);
-        texData.push_back(t.specularColor.z);
+        // Pixel 1: [emissive.xyz, roughness]
+        materialData.push_back(t.emissive.x);
+        materialData.push_back(t.emissive.y);
+        materialData.push_back(t.emissive.z);
+        materialData.push_back(t.roughness);
+
+        // Pixel 2: [specularColor.xyz, padding]
+        materialData.push_back(t.specularColor.x);
+        materialData.push_back(t.specularColor.y);
+        materialData.push_back(t.specularColor.z);
+        materialData.push_back(0.0f);
     }
 
-    glBindTexture(GL_TEXTURE_2D, m_triangleTexture);
-    int width = 5;
     int height = std::max(1, static_cast<int>(m_triangles.size()));
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
-        GL_FLOAT, texData.empty() ? nullptr : texData.data());
+    bool needsReallocation = (height != m_lastTriangleTextureHeight);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // Upload geometry texture
+    glBindTexture(GL_TEXTURE_2D, m_triangleGeomTexture);
+    if (needsReallocation) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 3, height, 0, GL_RGBA,
+            GL_FLOAT, geomData.empty() ? nullptr : geomData.data());
+    } else if (!geomData.empty()) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 3, height, GL_RGBA, GL_FLOAT,
+            geomData.data());
+    }
+
+    // Upload material texture
+    glBindTexture(GL_TEXTURE_2D, m_triangleMaterialTexture);
+    if (needsReallocation) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 3, height, 0, GL_RGBA,
+            GL_FLOAT, materialData.empty() ? nullptr : materialData.data());
+        m_lastTriangleTextureHeight = height;
+    } else if (!materialData.empty()) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 3, height, GL_RGBA, GL_FLOAT,
+            materialData.data());
+    }
+
     m_pathTracingShader.use();
-    m_pathTracingShader.setInt("trianglesTex", 1);
+    m_pathTracingShader.setInt("triangleGeomTex", 1);
+    m_pathTracingShader.setInt("triangleMaterialTex", 2);
     m_pathTracingShader.setInt(
         "numTriangles", static_cast<int>(m_triangles.size()));
 }
