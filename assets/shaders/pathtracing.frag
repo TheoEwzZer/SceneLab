@@ -72,7 +72,7 @@ const float c_epsilon = 0.0001f;
 const float c_pi = 3.14159265359f;
 const float c_twopi = 2.0f * c_pi;
 const float c_rayPosNormalNudge = 0.01f;
-const int c_numBounces = 3;
+const int c_numBounces = 10;
 const float c_superFar = 10000.0f;
 const float c_minimumRayHitTime = 0.1f;
 const int c_numRendersPerFrame = 1;
@@ -291,22 +291,6 @@ vec3 RandomUnitVector(inout uint state)
 
 void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
 {
-    // light
-    {
-        vec3 A = vec3(-5.0f, 12.4f,  -12.5f);
-        vec3 B = vec3( 5.0f, 12.4f,  -12.5f);
-        vec3 C = vec3( 5.0f, 12.4f,  -7.5f);
-        vec3 D = vec3(-5.0f, 12.4f,  -7.5f);
-        if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
-        {
-            hitInfo.material.albedo = vec3(0.0f, 0.0f, 0.0f);
-            hitInfo.material.emissive = vec3(15.0f, 15.0f, 15.0f);
-            hitInfo.material.percentSpecular = 0.0f;
-            hitInfo.material.roughness = 0.0f;
-            hitInfo.material.specularColor = vec3(1.0f, 1.0f, 1.0f);
-        }
-    }
-
     for (int triIndex = 0; triIndex < numTriangles; ++triIndex) {
         Triangle tri = loadTriangle(triIndex);
         if (TestTriangleTrace(rayPos, rayDir, hitInfo,

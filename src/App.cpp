@@ -261,8 +261,11 @@ void App::render()
     m_sceneGraph.traverseWithTransform(
         [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
             (void)depth;
-            if (obj.rendererId >= 0) {
+            if (obj.hasTransformChanged()) {
+                std::cout << "Updating transform for object ID "
+                          << obj.rendererId << std::endl;
                 m_renderer->updateTransform(obj.rendererId, worldTransform);
+                obj.setHasMoved(false);
             }
         });
 
