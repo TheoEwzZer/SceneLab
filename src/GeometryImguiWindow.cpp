@@ -46,6 +46,17 @@ void GeometryImguiWindow::render()
         m_curveCount++;
     }
 
+    ImGui::Spacing();
+    ImGui::SeparatorText("Triangles mesh");
+    if (ImGui::Button("ajouter point") && onAddPoint) {
+        onAddPoint();
+        m_sphereCount++;
+    }
+    if (ImGui::Button("Générer maillage triangulaire") && onGenerateMesh) {
+        onGenerateMesh();
+        m_meshCount++;
+    }
+
     ImGui::NewLine();
     ImGui::SeparatorText("3D obj");
     if (ImGui::Button("Load Model")) {

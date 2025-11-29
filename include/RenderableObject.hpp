@@ -81,6 +81,17 @@ public:
 
     virtual void useShader([[maybe_unused]] ShaderProgram &shader) const {}
 
+    void updateGeometry(const std::vector<float>& vertices)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER,
+             vertices.size() * sizeof(float),
+             vertices.data(),
+             GL_DYNAMIC_DRAW);
+
+        indexCount = vertices.size() / 3;
+    }
+
     virtual void draw(const ShaderProgram &vectorial,
         const ShaderProgram &pointLight, const ShaderProgram &lighting,
         const TextureLibrary &textures) const

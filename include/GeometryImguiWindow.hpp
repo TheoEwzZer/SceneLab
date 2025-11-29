@@ -16,6 +16,9 @@ public:
     std::function<void(float size)> onSpawnCube;
     std::function<void(float radius, float height, int sectors)>
         onSpawnCylinder;
+    std::function<void(int controlPoints)> onSpawnParametricCurve;
+    std::function<void()> onAddPoint;
+    std::function<void()> onGenerateMesh;
     std::function<void(const std::string &objName, const std::string &objPath)>
         onLoadModel;
     std::function<void(const std::string &name, const std::string &filepath)>
@@ -24,6 +27,8 @@ public:
     std::size_t m_sphereCount { 0 };
     std::size_t m_cubeCount { 0 };
     std::size_t m_cylinderCount { 0 };
+    std::size_t m_curveCount { 0 };
+    std::size_t m_meshCount { 0 };
 
     ModelLibrary m_modelLibrary;
 

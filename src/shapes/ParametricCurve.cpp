@@ -2,7 +2,7 @@
 // Created by clmonn on 11/25/25.
 //
 
-#include "../include/ParametricCurve.hpp"
+#include "../../include/shapes/ParametricCurve.hpp"
 
 void ParametricCurve::addControlPoint(SceneGraph::Node *node)
 {

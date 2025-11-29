@@ -2,9 +2,9 @@
 // Created by clmonn on 11/27/25.
 //
 
-#include "../../include/objects/Curve.hpp"
+#include "../../include/objects/DynamicLine.hpp"
 
-Curve::Curve(const glm::vec3 color)
+DynamicLine::DynamicLine(const glm::vec3 color)
  {
      m_color = color;
      glGenVertexArrays(1, &VAO);
@@ -25,7 +25,7 @@ Curve::Curve(const glm::vec3 color)
      isActive = true;
  }
 
-void Curve::draw(const ShaderProgram &vectorial,
+void DynamicLine::draw(const ShaderProgram &vectorial,
      const ShaderProgram &pointLight, const ShaderProgram &lighting,
      const TextureLibrary &textures) const
  {

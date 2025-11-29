@@ -64,6 +64,7 @@ public:
     int registerObject(std::unique_ptr<RenderableObject> obj,
         const glm::vec3 &color) override;
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
+    void updateGeometry(int objectId, const std::vector<float> &vertices) override;
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
         const glm::vec3 &corner2) override;
