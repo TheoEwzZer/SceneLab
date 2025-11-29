@@ -17,7 +17,6 @@
 #include <memory>
 
 enum class ToneMappingMode : int { Off = 0, Reinhard, ACES };
-enum LightingModel { LAMBERT = 0, PHONG = 1, BLINN_PHONG = 2, GOURAUD = 3 };
 
 class RasterizationRenderer : public IRenderer {
 private:
@@ -106,6 +105,9 @@ public:
     float getObjectIndexOfRefraction(int objectId) const override;
     void setObjectRefractionChance(int objectId, float chance) override;
     float getObjectRefractionChance(int objectId) const override;
+
+    void setObjectMaterial(int objectId, const Material &mat) override;
+    void setAmbientLight(const glm::vec3 &color) override {m_ambientLightColor = color;};
 
     // Camera Related
     void setViewMatrix(const glm::mat4 &view) override { m_viewMatrix = view; }

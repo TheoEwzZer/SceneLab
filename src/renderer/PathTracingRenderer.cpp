@@ -14,6 +14,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 
+#define PATH_TRACING_EMISSIVE_MULTIPLIER 1.0f;
+
 PathTracingRenderer::PathTracingRenderer(Window &window) : m_window(window)
 {
 
@@ -279,6 +281,19 @@ PathTracingRenderer::extractAllObjects()
     return objects;
 }
 
+void PathTracingRenderer::setObjectMaterial(int objectId, const Material &mat)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
+        return;
+    }
+
+    if (!m_objects[objectId].renderObject) {
+        return;
+    }
+    m_objects[objectId].renderObject->setMaterial(mat);
+    m_trianglesDirty = true;
+}
+
 void PathTracingRenderer::setObjectColor(int objectId, const glm::vec3 &color)
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
@@ -454,6 +469,17 @@ float PathTracingRenderer::getObjectRefractionChance(int objectId) const
     }
 
     return m_objects[objectId].renderObject->getRefractionChance();
+}
+
+RenderableObject &PathTracingRenderer::getRenderable(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_objects.size())) {
+        throw std::invalid_argument("getRendrable: pathtracer renderer invalid ObjectID");
+    }
+    if (m_objects[objectId].renderObject) {
+        return (*m_objects[objectId].renderObject);
+    }
+    throw std::invalid_argument("getRendrable: pathtracer renderer invalid ObjectID");
 }
 
 void PathTracingRenderer::beginFrame()

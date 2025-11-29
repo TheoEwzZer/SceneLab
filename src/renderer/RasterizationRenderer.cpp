@@ -671,16 +671,15 @@ void RasterizationRenderer::assignTextureToObject(
 RenderableObject &RasterizationRenderer::getRenderable(int objectId) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        throw std::invalid_argument("getRendrable: invalid ObjectID");
+        throw std::invalid_argument("getRendrable: raster renderer invalid ObjectID");
     }
     if (auto &obj = m_renderObjects[objectId]) {
         return (*obj);
     }
-    throw std::invalid_argument("getRendrable: invalid ObjectID");
+    throw std::invalid_argument("getRendrable: raster renderer invalid ObjectID");
 }
 
-void RasterizationRenderer::assignMaterialToObject(
-    const int objectId, Material &mat) const
+void RasterizationRenderer::setObjectMaterial(int objectId, const Material &mat)
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return;
@@ -689,7 +688,6 @@ void RasterizationRenderer::assignMaterialToObject(
         obj->setMaterial(mat);
     }
 }
-
 
 void RasterizationRenderer::assignTextureToObject(
     const int objectId, const std::string &texturePath)
