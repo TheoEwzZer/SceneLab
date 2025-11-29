@@ -22,10 +22,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "objects/Light.hpp"
 
-
-RasterizationRenderer::RasterizationRenderer(Window &window)
-    : m_window(window)
-    , m_ambientLightColor(DEFAULT_AMBIENT_LIGHT_COLOR)
+RasterizationRenderer::RasterizationRenderer(Window &window) :
+    m_window(window), m_ambientLightColor(DEFAULT_AMBIENT_LIGHT_COLOR)
 {
 
     glEnable(GL_DEPTH_TEST);
@@ -33,25 +31,34 @@ RasterizationRenderer::RasterizationRenderer(Window &window)
 
     m_lightingShader.init(
         "../assets/shaders/shader.vert", "../assets/shaders/lighting.frag");
-    m_gouraudLightingShader.init(
-        "../assets/shaders/lighting_gouraud.vert", "../assets/shaders/lighting_gouraud.frag");
+    m_gouraudLightingShader.init("../assets/shaders/lighting_gouraud.vert",
+        "../assets/shaders/lighting_gouraud.frag");
     m_vectorialShader.init(
         "../assets/shaders/shader_vect.vert", "../assets/shaders/vect.frag");
     m_bboxShader.init(
         "../assets/shaders/shader.vert", "../assets/shaders/bbox.frag");
     m_skyboxShader.init(
         "../assets/shaders/skybox.vert", "../assets/shaders/skybox.frag");
+    m_pbrShader.init(
+        "../assets/shaders/pbr.vert", "../assets/shaders/pbr.frag");
+    m_deferredGeometryShader.init("../assets/shaders/deferred_geometry.vert",
+        "../assets/shaders/deferred_geometry.frag");
+    m_deferredLightingShader.init("../assets/shaders/deferred_lighting.vert",
+        "../assets/shaders/deferred_lighting.frag");
 
-    for (auto &shader: {m_vectorialShader, m_lightingShader, m_gouraudLightingShader}) {
+    for (auto &shader : { m_vectorialShader, m_lightingShader,
+             m_gouraudLightingShader, m_pbrShader }) {
         shader.use();
         shader.setVec3("ambientLightColor", m_ambientLightColor);
         shader.setInt("ourTexture", 0);
         shader.setInt("filterMode", 0);
         shader.setVec2("texelSize", glm::vec2(1.0f));
-        shader.setInt(
-            "toneMappingMode", static_cast<int>(m_toneMappingMode));
+        shader.setInt("toneMappingMode", static_cast<int>(m_toneMappingMode));
         shader.setFloat("toneExposure", m_toneMappingExposure);
     }
+    // PBR-specific uniforms
+    m_pbrShader.use();
+    m_pbrShader.setBool("useIBL", false);
     m_skyboxShader.use();
     m_skyboxShader.setInt("skybox", 0);
     m_lightingShader.use();
@@ -64,6 +71,11 @@ RasterizationRenderer::RasterizationRenderer(Window &window)
 
     initializeSkyboxGeometry();
     m_textureLibrary.ensureDefaultTextures();
+
+    // Initialize IBL Manager and create default IBL textures
+    m_iblManager = std::make_unique<IBLManager>();
+    // Pre-generate BRDF LUT so we have valid textures even when IBL is off
+    m_iblManager->getBRDFLUT();
     m_textureLibrary.ensureDefaultCubemaps();
 }
 
@@ -420,6 +432,46 @@ float RasterizationRenderer::getObjectRefractionChance(int objectId) const
     return m_renderObjects[objectId]->getRefractionChance();
 }
 
+void RasterizationRenderer::setObjectMetallic(int objectId, float metallic)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setMetallic(metallic);
+}
+
+float RasterizationRenderer::getObjectMetallic(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return 0.0f;
+    if (!m_renderObjects[objectId])
+        return 0.0f;
+
+    return m_renderObjects[objectId]->getMetallic();
+}
+
+void RasterizationRenderer::setObjectAO(int objectId, float ao)
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return;
+    if (!m_renderObjects[objectId])
+        return;
+
+    m_renderObjects[objectId]->setAO(ao);
+}
+
+float RasterizationRenderer::getObjectAO(int objectId) const
+{
+    if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size()))
+        return 1.0f;
+    if (!m_renderObjects[objectId])
+        return 1.0f;
+
+    return m_renderObjects[objectId]->getAO();
+}
+
 void RasterizationRenderer::beginFrame()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -432,7 +484,15 @@ void RasterizationRenderer::beginFrame()
     m_vectorialShader.setMat4("view", m_viewMatrix);
     m_vectorialShader.setMat4("projection", m_projMatrix);
 
-    auto &lshader = this->m_lightingModel != GOURAUD ? m_lightingShader : m_gouraudLightingShader;
+    ShaderProgram *lshaderPtr;
+    if (m_lightingModel == PBR) {
+        lshaderPtr = &m_pbrShader;
+    } else if (m_lightingModel == GOURAUD) {
+        lshaderPtr = &m_gouraudLightingShader;
+    } else {
+        lshaderPtr = &m_lightingShader;
+    }
+    auto &lshader = *lshaderPtr;
 
     lshader.use();
     lshader.setMat4("view", m_viewMatrix);
@@ -536,7 +596,15 @@ void RasterizationRenderer::drawAll(Camera cam)
     m_vectorialShader.setMat4("view", m_viewMatrix);
     m_vectorialShader.setMat4("projection", m_projMatrix);
 
-    auto &lshader = this->m_lightingModel != GOURAUD ? m_lightingShader : m_gouraudLightingShader;
+    ShaderProgram *lshaderPtr;
+    if (m_lightingModel == PBR) {
+        lshaderPtr = &m_pbrShader;
+    } else if (m_lightingModel == GOURAUD) {
+        lshaderPtr = &m_gouraudLightingShader;
+    } else {
+        lshaderPtr = &m_lightingShader;
+    }
+    auto &lshader = *lshaderPtr;
 
     lshader.use();
     lshader.setMat4("view", m_viewMatrix);
@@ -546,6 +614,29 @@ void RasterizationRenderer::drawAll(Camera cam)
     lshader.setFloat("toneExposure", m_toneMappingExposure);
     lshader.setVec3("viewPosition", cam.getPosition());
     lshader.setVec3("ambientLightColor", m_ambientLightColor);
+
+    // PBR-specific uniforms and IBL binding
+    if (m_lightingModel == PBR) {
+        bool iblActive = m_useIBL && m_currentIBLTextures.valid;
+        lshader.setBool("useIBL", iblActive);
+        
+        // Always set sampler uniforms to valid texture units
+        lshader.setInt("irradianceMap", 5);
+        lshader.setInt("prefilterMap", 6);
+        lshader.setInt("brdfLUT", 7);
+        
+        if (iblActive) {
+            m_iblManager->bindIBLTextures(lshader, m_currentIBLTextures);
+        } else {
+            // Bind dummy textures to prevent GL errors
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, m_iblManager->getBRDFLUT());
+        }
+    }
 
     // Configure light uniforms
     std::vector<int> lightsNumbers(Light::Type::TypeEnd, 0);
@@ -689,7 +780,6 @@ void RasterizationRenderer::assignMaterialToObject(
         obj->setMaterial(mat);
     }
 }
-
 
 void RasterizationRenderer::assignTextureToObject(
     const int objectId, const std::string &texturePath)
@@ -1050,4 +1140,47 @@ void RasterizationRenderer::renderDockableViews(CameraManager &cameraManager)
 
         ImGui::End();
     }
+}
+
+void RasterizationRenderer::setUseDeferredRendering(bool useDeferred)
+{
+    m_useDeferredRendering = useDeferred;
+    if (useDeferred && !m_deferredRenderer.isEnabled()) {
+        // Initialize G-Buffer with current window size
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        int width = viewport[2] > 0 ? viewport[2] : 1920;
+        int height = viewport[3] > 0 ? viewport[3] : 1080;
+        m_deferredRenderer.initialize(width, height);
+        m_deferredRenderer.setEnabled(true);
+    }
+}
+
+void RasterizationRenderer::setUseIBL(bool useIBL)
+{
+    m_useIBL = useIBL;
+    if (useIBL && !m_currentIBLTextures.valid) {
+        generateIBLFromCurrentCubemap();
+    }
+}
+
+void RasterizationRenderer::generateIBLFromCurrentCubemap()
+{
+    if (!m_iblManager) {
+        return;
+    }
+
+    int activeCubemap = m_textureLibrary.getActiveCubemap();
+    if (activeCubemap < 0) {
+        std::cerr << "No active cubemap for IBL generation" << std::endl;
+        return;
+    }
+
+    const TextureResource *resource = getTextureResource(activeCubemap);
+    if (!resource || resource->target != TextureTarget::Cubemap) {
+        std::cerr << "Invalid cubemap for IBL generation" << std::endl;
+        return;
+    }
+
+    m_currentIBLTextures = m_iblManager->generateIBLFromCubemap(resource->id);
 }

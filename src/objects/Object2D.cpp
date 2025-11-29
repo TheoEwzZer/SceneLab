@@ -72,9 +72,8 @@ void Object2D::init(const std::vector<float> &vertices,
         processedVertices.data(), GL_STATIC_DRAW);
 
     if (!processedVertices.empty()) {
-        setColor({processedVertices[3], processedVertices[4], processedVertices[5]});
-        // m_color = glm::vec3(
-        //     processedVertices[3], processedVertices[4], processedVertices[5]);
+        setColor({ processedVertices[3], processedVertices[4],
+            processedVertices[5] });
     }
 
     if (hasIndices) {

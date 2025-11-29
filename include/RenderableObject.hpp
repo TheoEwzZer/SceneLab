@@ -39,6 +39,8 @@ protected:
     glm::vec3 m_emissive = glm::vec3(0.0f);
     float m_percentSpecular = 0.0f;
     float m_roughness = 0.5f;
+    float m_metallic = 0.0f; // PBR metallic property
+    float m_ao = 1.0f; // PBR ambient occlusion
     glm::vec3 m_specularColor = glm::vec3(1.0f);
 
     float m_indexOfRefraction = 1.0f;
@@ -64,9 +66,9 @@ public:
         }
     }
 
-    void setMaterial(const Material &mat) {m_mat = mat;};
+    void setMaterial(const Material &mat) { m_mat = mat; };
 
-    Material &getMaterial() {return m_mat;};
+    Material &getMaterial() { return m_mat; };
 
     void setFilterMode(const FilterMode mode) { filterMode = mode; }
 
@@ -89,18 +91,17 @@ public:
 
     void setColor(const glm::vec3 &color)
     {
-        m_mat = Material(m_mat.m_ambientColor, color, m_mat.m_specularColor, m_mat.m_emissiveColor);
+        m_mat = Material(m_mat.m_ambientColor, color, m_mat.m_specularColor,
+            m_mat.m_emissiveColor);
         m_useTexture = false;
     }
-
-    // [[nodiscard]] glm::vec3 getColor() const { return m_color; }
 
     glm::vec3 getColor() const { return m_mat.m_diffuseColor; }
 
     void setEmissive(const glm::vec3 &emissive)
     {
         m_emissive = emissive;
-        m_mat.m_emissiveColor = emissive; // Sync for rasterization
+        m_mat.m_emissiveColor = emissive;
     }
 
     [[nodiscard]] glm::vec3 getEmissive() const { return m_emissive; }
@@ -112,9 +113,29 @@ public:
         return m_percentSpecular;
     }
 
-    void setRoughness(float roughness) { m_roughness = roughness; }
+    void setRoughness(float roughness)
+    {
+        m_roughness = roughness;
+        m_mat.m_roughness = roughness; // Sync with material
+    }
 
     [[nodiscard]] float getRoughness() const { return m_roughness; }
+
+    void setMetallic(float metallic)
+    {
+        m_metallic = metallic;
+        m_mat.m_metallic = metallic; // Sync with material
+    }
+
+    [[nodiscard]] float getMetallic() const { return m_metallic; }
+
+    void setAO(float ao)
+    {
+        m_ao = ao;
+        m_mat.m_ao = ao; // Sync with material
+    }
+
+    [[nodiscard]] float getAO() const { return m_ao; }
 
     void setSpecularColor(const glm::vec3 &color) { m_specularColor = color; }
 

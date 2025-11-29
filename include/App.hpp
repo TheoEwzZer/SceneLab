@@ -44,6 +44,7 @@ class App {
     bool m_showImageWindow = true;
     bool m_showVectorWindow = true;
     bool m_showHierarchyWindow = true;
+    bool m_showIlluminationWindow = true;
 
 private:
     Window m_window;

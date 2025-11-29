@@ -36,7 +36,8 @@ App::App() : m_window(1920, 1080, "SceneLab")
     m_cameraController
         = std::make_unique<CameraController>(m_camera, m_renderer);
 
-    illumination_ui = std::make_unique<Illumination::UIIllumination>(*m_transformManager, m_sceneGraph);
+    illumination_ui = std::make_unique<Illumination::UIIllumination>(
+        *m_transformManager, m_sceneGraph);
     if (auto *rasterRenderer
         = dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
         m_textureManager = std::make_unique<TextureManager>(
@@ -584,6 +585,8 @@ void App::renderMainMenuBar()
             ImGui::MenuItem("Camera", nullptr, &m_showCameraWindow);
             ImGui::MenuItem("Image", nullptr, &m_showImageWindow);
             ImGui::MenuItem("Vector Drawing", nullptr, &m_showVectorWindow);
+            ImGui::MenuItem(
+                "Illumination", nullptr, &m_showIlluminationWindow);
             ImGui::EndMenu();
         }
 
@@ -632,7 +635,9 @@ void App::render()
     renderMainMenuBar();
 
     // Illumination UI
-    illumination_ui->renderUI(this);
+    if (m_showIlluminationWindow) {
+        illumination_ui->renderUI(this);
+    }
 
     // Vector drawing UI
     vectorial_ui.renderUI(this, &m_showVectorWindow);

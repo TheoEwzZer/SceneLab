@@ -338,8 +338,12 @@ void TextureManager::renderCubemapPanel()
                 + std::to_string(
                     static_cast<int>(m_renderer.getCubemapHandles().size())
                     + 1);
-            m_renderer.loadCubemapFromEquirectangular(
+            int newCubemapHandle = m_renderer.loadCubemapFromEquirectangular(
                 cubemapName, filePath, 512, m_useSRGB);
+            // Automatically set the new cubemap as active skybox
+            if (newCubemapHandle >= 0) {
+                m_renderer.setActiveCubemap(newCubemapHandle);
+            }
         }
         ImGuiFileDialog::Instance()->Close();
     }

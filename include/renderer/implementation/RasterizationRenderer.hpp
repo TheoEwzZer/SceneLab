@@ -7,6 +7,8 @@
 #include "ShaderProgram.hpp"
 #include "glm/fwd.hpp"
 #include "renderer/TextureLibrary.hpp"
+#include "deferred/DeferredRenderer.hpp"
+#include "pbr/IBLManager.hpp"
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -17,7 +19,14 @@
 #include <memory>
 
 enum class ToneMappingMode : int { Off = 0, Reinhard, ACES };
-enum LightingModel { LAMBERT = 0, PHONG = 1, BLINN_PHONG = 2, GOURAUD = 3 };
+
+enum LightingModel {
+    LAMBERT = 0,
+    PHONG = 1,
+    BLINN_PHONG = 2,
+    GOURAUD = 3,
+    PBR = 4 // Physically Based Rendering (Cook-Torrance)
+};
 
 class RasterizationRenderer : public IRenderer {
 private:
@@ -33,8 +42,11 @@ private:
     ShaderProgram m_lightingShader;
     ShaderProgram m_vectorialShader;
     ShaderProgram m_gouraudLightingShader;
+    ShaderProgram m_pbrShader; // PBR Cook-Torrance shader
     ShaderProgram m_bboxShader;
     ShaderProgram m_skyboxShader;
+    ShaderProgram m_deferredGeometryShader;
+    ShaderProgram m_deferredLightingShader;
 
     std::vector<std::unique_ptr<RenderableObject>> m_renderObjects;
     std::vector<int> m_freeSlots;
@@ -56,6 +68,14 @@ private:
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
 
+    // IBL support (for PBR)
+    bool m_useIBL = false;
+    std::unique_ptr<IBLManager> m_iblManager;
+    IBLManager::IBLTextures m_currentIBLTextures;
+
+    DeferredRenderer m_deferredRenderer;
+    bool m_useDeferredRendering = false;
+
     void initializeSkyboxGeometry();
     void drawSkybox() const;
     void createBoundingBoxBuffers();
@@ -67,8 +87,8 @@ public:
         "Grayscale", "Sharpen", "Edge Detect", "Blur" };
     static constexpr std::array<const char *, 3> TONEMAP_LABELS { "Off",
         "Reinhard", "ACES" };
-    static constexpr glm::vec3 DEFAULT_AMBIENT_LIGHT_COLOR {0.1f,0.1f, 0.1f};
-
+    static constexpr glm::vec3 DEFAULT_AMBIENT_LIGHT_COLOR { 0.1f, 0.1f,
+        0.1f };
 
     explicit RasterizationRenderer(Window &window);
     virtual ~RasterizationRenderer() override;
@@ -82,7 +102,8 @@ public:
         const std::string &texturePath) override;
     int registerObject(std::unique_ptr<RenderableObject> obj,
         const glm::vec3 &color) override;
-    int registerObject(std::unique_ptr<RenderableObject> obj, const Material &material) override;
+    int registerObject(std::unique_ptr<RenderableObject> obj,
+        const Material &material) override;
     void updateTransform(int objectId, const glm::mat4 &modelMatrix) override;
     void removeObject(int objectId) override;
     void drawBoundingBox(int objectId, const glm::vec3 &corner1,
@@ -106,6 +127,12 @@ public:
     float getObjectIndexOfRefraction(int objectId) const override;
     void setObjectRefractionChance(int objectId, float chance) override;
     float getObjectRefractionChance(int objectId) const override;
+
+    // PBR material accessors
+    void setObjectMetallic(int objectId, float metallic);
+    float getObjectMetallic(int objectId) const;
+    void setObjectAO(int objectId, float ao);
+    float getObjectAO(int objectId) const;
 
     // Camera Related
     void setViewMatrix(const glm::mat4 &view) override { m_viewMatrix = view; }
@@ -189,7 +216,20 @@ public:
     const std::vector<int> &getCubemapHandles() const;
 
     void setLightingModel(LightingModel model) { m_lightingModel = model; }
+
     LightingModel getLightingModel() const { return m_lightingModel; }
+
+    void setUseIBL(bool useIBL);
+
+    bool getUseIBL() const { return m_useIBL; }
+
+    void generateIBLFromCurrentCubemap();
+
+    void setUseDeferredRendering(bool useDeferred);
+
+    bool getUseDeferredRendering() const { return m_useDeferredRendering; }
+
+    DeferredRenderer &getDeferredRenderer() { return m_deferredRenderer; }
 
     glm::vec3 m_ambientLightColor;
 };
