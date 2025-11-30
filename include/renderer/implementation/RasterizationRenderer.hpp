@@ -88,6 +88,7 @@ public:
     void endFrame() override;
 
     int loadTexture2D(const std::string &filepath, bool srgb = false);
+    int loadNormalMap(const std::string &filepath);
     int createCheckerboardTexture(const std::string &name, int width,
         int height, const glm::vec3 &colorA, const glm::vec3 &colorB,
         int checks = 8, bool srgb = false);
@@ -98,14 +99,21 @@ public:
         bool srgb = false);
     void assignTextureToObject(int objectId, int textureHandle) const;
     void assignTextureToObject(int objectId, const std::string &texturePath);
+    void assignNormalMapToObject(int objectId, int normalMapHandle) const;
+    void assignNormalMapToObject(int objectId, const std::string &texturePath);
     int getObjectTextureHandle(int objectId) const;
+    int getObjectNormalMapHandle(int objectId) const;
     void setObjectFilter(int objectId, FilterMode mode) const;
     FilterMode getObjectFilter(int objectId) const;
     void setObjectUseTexture(int objectId, bool useTexture) const;
     bool getObjectUseTexture(int objectId) const;
+    void setObjectUseNormalMap(int objectId, bool useNormalMap) const;
+    bool getObjectUseNormalMap(int objectId) const;
     const TextureResource *getTextureResource(int handle) const;
+    const NormalMapResource *getNormalMapResource(int handle) const;
 
     const std::vector<TextureResource> &getTextureResources() const;
+    const std::vector<NormalMapResource> &getNormalMapResources() const;
 
     void setToneMappingMode(ToneMappingMode mode);
 

@@ -9,9 +9,9 @@
 
 class Light : public RenderableObject {
 public:
-    Light(const std::vector<float> &vertices,
+    Light(const std::vector<Vertex> &vertices,
         const std::vector<unsigned int> &indices, int textureHandle = -1);
-    Light(const std::vector<float> &vertices,
+    Light(const std::vector<Vertex> &vertices,
         const std::vector<unsigned int> &indices, const glm::vec3 &color);
 
     void useShader(ShaderProgram &shader) const override;
@@ -22,7 +22,7 @@ public:
         const TextureLibrary &textures) const override;
 
 private:
-    void init(const std::vector<float> &vertices,
+    void init(const std::vector<Vertex> &vertices,
         const std::vector<unsigned int> &indices);
 };
 

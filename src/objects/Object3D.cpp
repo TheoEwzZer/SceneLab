@@ -4,23 +4,24 @@
 
 #include "../../include/objects/Object3D.hpp"
 
-Object3D::Object3D(const std::vector<float> &vertices,
+Object3D::Object3D(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices, const glm::vec3 &color)
 {
     init(vertices, indices);
     m_color = color;
 }
 
-Object3D::Object3D(const std::vector<float> &vertices,
+Object3D::Object3D(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices, const int textureHandle)
 {
     init(vertices, indices);
     this->m_textureHandle = textureHandle;
 }
 
-void Object3D::init(const std::vector<float> &vertices,
+void Object3D::init(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices)
 {
+    indexCount = vertices.size();
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -29,7 +30,7 @@ void Object3D::init(const std::vector<float> &vertices,
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
     useIndices = !indices.empty();
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float),
+    glBufferData(GL_ARRAY_BUFFER, indexCount * sizeof(Vertex),
         vertices.data(), GL_STATIC_DRAW);
 
     if (useIndices) {
@@ -40,19 +41,23 @@ void Object3D::init(const std::vector<float> &vertices,
             GL_STATIC_DRAW);
         indexCount = static_cast<unsigned int>(indices.size());
         useIndices = true;
-    } else {
-        indexCount = static_cast<unsigned int>(vertices.size() / 8);
     }
 
     glVertexAttribPointer(
-        0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+        0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-        (void *)(3 * sizeof(float)));
+    glVertexAttribPointer(
+        1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoord));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-        (void *)(5 * sizeof(float)));
+    glVertexAttribPointer(
+        2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
     glEnableVertexAttribArray(2);
+    glVertexAttribPointer(
+        3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(
+        4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
+    glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 
     isActive = true;
@@ -65,14 +70,20 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
     const TextureResource *texture
         = textures.getTextureResource(m_textureHandle);
 
+    const NormalMapResource *normalMap
+        = textures.getNormalMapResource(m_normalMapHandler);
+
     lighting.use();
     lighting.setMat4("model", modelMatrix);
     const bool useTexture = this->m_useTexture && texture
         && texture->target == TextureTarget::Texture2D;
     lighting.setBool("useTexture", useTexture);
+
+    const bool useNormalMap = this->m_useNormalMap && normalMap;
+    lighting.setBool("useNormalMap", useNormalMap);
     lighting.setVec3("objectColor", m_color);
     lighting.setInt("filterMode", static_cast<int>(filterMode));
-    glm::vec2 texelSize = useTexture
+    const glm::vec2 texelSize = useTexture
         ? glm::vec2(1.0f / static_cast<float>(texture->size.x),
             1.0f / static_cast<float>(texture->size.y))
         : glm::vec2(0.0f);
@@ -84,6 +95,14 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
             glBindTexture(GL_TEXTURE_2D, texture->id);
         }
     } else {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    if (normalMap) {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, normalMap->id);
+    } else {
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 

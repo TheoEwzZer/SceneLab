@@ -4,21 +4,21 @@
 
 #include "../../include/objects/Light.hpp"
 
-Light::Light(const std::vector<float> &vertices,
+Light::Light(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices, const glm::vec3 &color)
 {
     init(vertices, indices);
     m_color = color;
 }
 
-Light::Light(const std::vector<float> &vertices,
+Light::Light(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices, const int textureHandle)
 {
     init(vertices, indices);
     this->m_textureHandle = textureHandle;
 }
 
-void Light::init(const std::vector<float> &vertices,
+void Light::init(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices)
 {
     glGenVertexArrays(1, &VAO);
@@ -41,18 +41,24 @@ void Light::init(const std::vector<float> &vertices,
         indexCount = static_cast<unsigned int>(indices.size());
         useIndices = true;
     } else {
-        indexCount = static_cast<unsigned int>(vertices.size() / 8);
+        indexCount = static_cast<unsigned int>(vertices.size());
     }
 
     glVertexAttribPointer(
-        0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+        0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-        (void *)(3 * sizeof(float)));
+    glVertexAttribPointer(
+        1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoord));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-        (void *)(5 * sizeof(float)));
+    glVertexAttribPointer(
+        2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
     glEnableVertexAttribArray(2);
+    glVertexAttribPointer(
+        3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(
+        4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
+    glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 
     isActive = true;

@@ -10,12 +10,13 @@
 
 #include <vector>
 #include <glm/glm.hpp>
+#include "objects/Object3D.hpp"
 
 // The returned vertex format is : pox.x | pox.y | pos.z | text.u | test.v |
 // n.x | n.y | n.z
 
 struct GData {
-    std::vector<float> vertices;
+    std::vector<Vertex> vertices;
     glm::vec3 aabbCorner1;
     glm::vec3 aabbCorner2;
 };
@@ -32,9 +33,6 @@ public:
     static GData generateCylinder(float radius, float height, int sectors);
 
 private:
-    static void addVertex(std::vector<float> &vertices,
-        const glm::vec3 &position, const glm::vec2 &texCoord,
-        const glm::vec3 &normal);
 };
 
 #endif /* GEOMETRYGENERATOR_H */
