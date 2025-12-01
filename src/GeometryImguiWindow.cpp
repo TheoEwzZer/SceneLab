@@ -69,11 +69,11 @@ void GeometryImguiWindow::render(bool *p_open)
 
     ImGui::Spacing();
     ImGui::SeparatorText("Triangles mesh");
-    if (ImGui::Button("ajouter point") && onAddPoint) {
+    if (ImGui::Button("Add point") && onAddPoint) {
         onAddPoint();
         m_sphereCount++;
     }
-    if (ImGui::Button("Générer maillage triangulaire") && onGenerateMesh) {
+    if (ImGui::Button("Generate triangulation") && onGenerateMesh) {
         onGenerateMesh();
         m_meshCount++;
     }
