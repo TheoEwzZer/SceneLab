@@ -29,14 +29,17 @@ App::App() : m_window(1920, 1080, "SceneLab")
     m_renderer = std::make_unique<RasterizationRenderer>(m_window);
 
     // Initialize managers
-    m_geometryManager
-        = std::make_unique<GeometryManager>(m_sceneGraph, m_renderer);
+    m_parametricCurveManager
+        = std::make_unique<DynamicGeometryManager>(m_renderer);
+    m_geometryManager = std::make_unique<GeometryManager>(
+        m_sceneGraph, m_renderer, *m_parametricCurveManager);
     m_transformManager
         = std::make_unique<TransformManager>(m_sceneGraph, m_renderer);
     m_cameraController
         = std::make_unique<CameraController>(m_camera, m_renderer);
 
-    illumination_ui = std::make_unique<Illumination::UIIllumination>(*m_transformManager, m_sceneGraph);
+    illumination_ui = std::make_unique<Illumination::UIIllumination>(
+        *m_transformManager, m_sceneGraph);
     if (auto *rasterRenderer
         = dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
         m_textureManager = std::make_unique<TextureManager>(
@@ -55,15 +58,15 @@ App::App() : m_window(1920, 1080, "SceneLab")
             m_transformManager->selectNode(newNode);
 
             // Update renderer transform so gizmo centers on the image
-            auto &obj = newNode->getData();
+            const auto &obj = newNode->getData();
             m_renderer->updateTransform(obj.rendererId, obj.getModelMatrix());
             m_cameraController->resetAllCameraPoses();
         }
     });
 
     m_renderer->setCameraOverlayCallback(
-        [this](int id, const Camera &camera, ImVec2 imagePos, ImVec2 imageSize,
-            bool isHovered) {
+        [this](const int id, const Camera &camera, const ImVec2 imagePos,
+            const ImVec2 imageSize, const bool isHovered) {
             m_transformManager->renderCameraGizmo(
                 id, camera, imagePos, imageSize, isHovered);
         });
@@ -72,7 +75,7 @@ App::App() : m_window(1920, 1080, "SceneLab")
         [this]() { m_transformManager->drawBoundingBoxes(); });
 }
 
-App::~App() {}
+App::~App() = default;
 
 void App::init()
 {
@@ -81,16 +84,14 @@ void App::init()
     m_sceneGraph.getRoot()->getData().rendererId = -1; // No renderer
     m_sceneGraph.getRoot()->getData().setName("Scene Root");
 
-    GData lightGeometry = GeometryGenerator::generateSphere(0.5f, 16, 16);
-    std::unique_ptr<SceneGraph::Node> lightNode
-        = std::make_unique<SceneGraph::Node>();
+    auto [vertices, aabbCorner1, aabbCorner2]
+        = GeometryGenerator::generateSphere(0.5f, 36, 18);
+    auto lightNode = std::make_unique<SceneGraph::Node>();
     lightNode->setData(GameObject());
     lightNode->getData().rendererId = m_renderer->registerObject(
-        std::make_unique<Light>(
-            lightGeometry.vertices, std::vector<unsigned int> {}),
+        std::make_unique<Light>(vertices, std::vector<unsigned int> {}),
         "../assets/wish-you-where-here.jpg");
-    lightNode->getData().setAABB(
-        lightGeometry.aabbCorner1, lightGeometry.aabbCorner2);
+    lightNode->getData().setAABB(aabbCorner1, aabbCorner2);
     lightNode->getData().setName("Point Light");
     lightNode->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
     lightNode->getData().setScale(glm::vec3(0.2f));
@@ -364,7 +365,8 @@ void App::init()
     // === END DEMO SCENE ===
 
     m_sceneGraph.traverseWithTransform(
-        [&](GameObject &obj, const glm::mat4 &worldTransform, int depth) {
+        [&](const GameObject &obj, const glm::mat4 &worldTransform,
+            const int depth) {
             (void)depth;
             if (obj.rendererId >= 0) {
                 m_renderer->updateTransform(obj.rendererId, worldTransform);
@@ -422,12 +424,16 @@ void App::update()
 {
     m_image->updateMessageTimer(0.016f);
     m_cameraController->update();
+    m_parametricCurveManager->updateGeometry();
 }
 
 void App::switchRenderer()
 {
     // Extract all objects from the old renderer before destroying it
     auto objects = m_renderer->extractAllObjects();
+
+    // Invalidate curve/triangulation renderables (they are not in sceneGraph)
+    m_parametricCurveManager->invalidateRenderables();
 
     // Create new renderer
     if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
@@ -437,19 +443,56 @@ void App::switchRenderer()
     }
 
     // Re-register all objects with the new renderer
-    m_sceneGraph.traverse([&](GameObject &obj, int depth) {
-        (void)depth;
-        if (obj.rendererId >= 0
-            && obj.rendererId < static_cast<int>(objects.size())) {
-            auto &renderObj = objects[obj.rendererId];
+    bool isPathTracing
+        = dynamic_cast<PathTracingRenderer *>(m_renderer.get()) != nullptr;
+
+    if (isPathTracing) {
+        // Store helper objects for later restoration
+        m_helperObjects.clear();
+        m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+            (void)depth;
+            if (obj.rendererId >= 0
+                && obj.rendererId < static_cast<int>(objects.size())) {
+                if (obj.isHelper()) {
+                    // Store helper for later
+                    m_helperObjects.emplace_back(
+                        &obj, std::move(objects[obj.rendererId]));
+                    obj.rendererId = -1;
+                } else {
+                    auto &renderObj = objects[obj.rendererId];
+                    if (renderObj) {
+                        obj.rendererId
+                            = m_renderer->registerObject(std::move(renderObj));
+                    } else {
+                        obj.rendererId = -1;
+                    }
+                }
+            }
+        });
+    } else {
+        // Rasterization mode - restore helper objects
+        m_sceneGraph.traverse([&](GameObject &obj, int depth) {
+            (void)depth;
+            if (obj.rendererId >= 0
+                && obj.rendererId < static_cast<int>(objects.size())) {
+                auto &renderObj = objects[obj.rendererId];
+                if (renderObj) {
+                    obj.rendererId
+                        = m_renderer->registerObject(std::move(renderObj));
+                } else {
+                    obj.rendererId = -1;
+                }
+            }
+        });
+        // Re-register stored helper objects
+        for (auto &[objPtr, renderObj] : m_helperObjects) {
             if (renderObj) {
-                obj.rendererId
+                objPtr->rendererId
                     = m_renderer->registerObject(std::move(renderObj));
-            } else {
-                obj.rendererId = -1;
             }
         }
-    });
+        m_helperObjects.clear();
+    }
 
     // Update transforms for all re-registered objects
     m_sceneGraph.traverseWithTransform(
@@ -584,6 +627,8 @@ void App::renderMainMenuBar()
             ImGui::MenuItem("Camera", nullptr, &m_showCameraWindow);
             ImGui::MenuItem("Image", nullptr, &m_showImageWindow);
             ImGui::MenuItem("Vector Drawing", nullptr, &m_showVectorWindow);
+            ImGui::MenuItem(
+                "Illumination", nullptr, &m_showIlluminationWindow);
             ImGui::EndMenu();
         }
 
@@ -632,7 +677,9 @@ void App::render()
     renderMainMenuBar();
 
     // Illumination UI
-    illumination_ui->renderUI(this);
+    if (m_showIlluminationWindow) {
+        illumination_ui->renderUI(this);
+    }
 
     // Vector drawing UI
     vectorial_ui.renderUI(this, &m_showVectorWindow);

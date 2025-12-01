@@ -12,7 +12,8 @@ using namespace Illumination;
 
 UIIllumination::UIIllumination(
     TransformManager &tref, SceneGraph &sceneGraph) :
-    m_illumination_model(0), m_tref(tref), m_sceneGraph(sceneGraph)
+    m_illumination_model(0),
+    m_tref(tref), m_sceneGraph(sceneGraph)
 {
 }
 
@@ -41,11 +42,14 @@ static void setFloat3(float *target_float_3, const glm::vec3 &v)
 void UIIllumination::renderUI(App *app)
 {
     static const char *models[]
-        = { "Lambert", "Phong", "Blinn-Phong", "Gouraud" };
+        = { "Lambert", "Phong", "Blinn-Phong", "Gouraud", "PBR" };
+    static const char *pbr_preset[]
+        = { "Gold", "Copper", "Iron", "Plastic Red", "Rubber" };
     static const char *materials_preset[] = { "Brass", "Bronze", "Gold",
         "Silver", "Copper", "Plastic", "Chrome", "Ceramic" };
 
-    auto *rasterRenderer = dynamic_cast<RasterizationRenderer *>(app->m_renderer.get());
+    auto *rasterRenderer
+        = dynamic_cast<RasterizationRenderer *>(app->m_renderer.get());
     if (rasterRenderer != nullptr) {
         ImGui::Begin("Illumination");
 
@@ -57,6 +61,30 @@ void UIIllumination::renderUI(App *app)
                 static_cast<LightingModel>(m_illumination_model));
         }
 
+        // Deferred Rendering toggle
+        bool useDeferred = rasterRenderer->getUseDeferredRendering();
+        if (ImGui::Checkbox("Deferred Rendering", &useDeferred)) {
+            rasterRenderer->setUseDeferredRendering(useDeferred);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enable G-Buffer based deferred rendering");
+        }
+
+        // IBL toggle - only shown in PBR mode
+        if (m_illumination_model == 4) {
+            bool useIBL = rasterRenderer->getUseIBL();
+            if (ImGui::Checkbox("Use IBL (Environment Lighting)", &useIBL)) {
+                rasterRenderer->setUseIBL(useIBL);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Use Image-Based Lighting from the active cubemap/HDR");
+            }
+            if (useIBL && ImGui::Button("Regenerate IBL")) {
+                rasterRenderer->generateIBLFromCurrentCubemap();
+            }
+        }
+
         ImGui::Separator();
         ImGui::Text("Material");
 
@@ -64,8 +92,10 @@ void UIIllumination::renderUI(App *app)
                 IM_ARRAYSIZE(materials_preset))) {
             setFloat3(m_ambient_color, materials[m_mat_preset].m_ambientColor);
             setFloat3(m_diffuse_color, materials[m_mat_preset].m_diffuseColor);
-            setFloat3(m_specular_color, materials[m_mat_preset].m_specularColor);
-            setFloat3(m_emissive_color, materials[m_mat_preset].m_emissiveColor);
+            setFloat3(
+                m_specular_color, materials[m_mat_preset].m_specularColor);
+            setFloat3(
+                m_emissive_color, materials[m_mat_preset].m_emissiveColor);
             m_shininess = materials[m_mat_preset].m_shininess;
         }
 
@@ -75,6 +105,26 @@ void UIIllumination::renderUI(App *app)
         ImGui::ColorEdit3("Emissive Color", m_emissive_color);
         ImGui::SliderFloat("Shininess", &m_shininess, 1.0f, 150.0f);
 
+        // PBR Material section (shown when PBR mode is active)
+        if (m_illumination_model == 4) { // PBR mode
+            ImGui::Separator();
+            ImGui::Text("PBR Material");
+
+            if (ImGui::Combo("PBR Preset", &m_pbr_preset, pbr_preset,
+                    IM_ARRAYSIZE(pbr_preset))) {
+                const auto &preset = pbrMaterials[m_pbr_preset];
+                setFloat3(m_diffuse_color, preset.albedo);
+                m_metallic = preset.metallic;
+                m_roughness = preset.roughness;
+                m_ao = preset.ao;
+            }
+
+            ImGui::ColorEdit3("Albedo", m_diffuse_color);
+            ImGui::SliderFloat("Metallic", &m_metallic, 0.0f, 1.0f);
+            ImGui::SliderFloat("Roughness", &m_roughness, 0.0f, 1.0f);
+            ImGui::SliderFloat("Ambient Occlusion", &m_ao, 0.0f, 1.0f);
+        }
+
         if (ImGui::Button("Apply Material")) {
             for (auto *node : m_tref.getSelectedNodes()) {
                 if (!node) {
@@ -82,9 +132,8 @@ void UIIllumination::renderUI(App *app)
                 }
                 int rendererId = node->getData().rendererId;
                 if (rendererId >= 0) {
-                    Material mat(
-                        glm::vec3(m_ambient_color[0], m_ambient_color[1],
-                            m_ambient_color[2]),
+                    Material mat(glm::vec3(m_ambient_color[0],
+                                     m_ambient_color[1], m_ambient_color[2]),
                         glm::vec3(m_diffuse_color[0], m_diffuse_color[1],
                             m_diffuse_color[2]),
                         glm::vec3(m_specular_color[0], m_specular_color[1],
@@ -92,7 +141,17 @@ void UIIllumination::renderUI(App *app)
                         glm::vec3(m_emissive_color[0], m_emissive_color[1],
                             m_emissive_color[2]),
                         m_shininess);
+                    // Set PBR properties
+                    mat.m_metallic = m_metallic;
+                    mat.m_roughness = m_roughness;
+                    mat.m_ao = m_ao;
+                    mat.m_usePBR = (m_illumination_model == 4);
                     rasterRenderer->assignMaterialToObject(rendererId, mat);
+                    // Also update via direct accessors
+                    rasterRenderer->setObjectMetallic(rendererId, m_metallic);
+                    rasterRenderer->setObjectRoughness(
+                        rendererId, m_roughness);
+                    rasterRenderer->setObjectAO(rendererId, m_ao);
                 }
             }
         }
@@ -121,20 +180,19 @@ void UIIllumination::renderUI(App *app)
                     if (l != nullptr) {
                         switch (l->getType()) {
                             case Light::Point:
-                                l->setPoint(glm::vec3(m_light_color[0],
-                                                m_light_color[1],
-                                                m_light_color[2]),
+                                l->setPoint(
+                                    glm::vec3(m_light_color[0],
+                                        m_light_color[1], m_light_color[2]),
                                     m_kc, m_kl, m_kq);
                                 break;
                             case Light::Directional:
-                                l->setDirectional(glm::vec3(
-                                    m_light_color[0], m_light_color[1],
-                                    m_light_color[2]));
+                                l->setDirectional(glm::vec3(m_light_color[0],
+                                    m_light_color[1], m_light_color[2]));
                                 break;
                             case Light::Spot:
-                                l->setSpot(glm::vec3(m_light_color[0],
-                                               m_light_color[1],
-                                               m_light_color[2]),
+                                l->setSpot(
+                                    glm::vec3(m_light_color[0],
+                                        m_light_color[1], m_light_color[2]),
                                     m_kc, m_kl, m_kq, m_p);
                                 break;
                             default:

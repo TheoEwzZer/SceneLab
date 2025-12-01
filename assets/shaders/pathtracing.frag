@@ -290,10 +290,10 @@ const float c_epsilon = 0.0001f;
 const float c_pi = 3.14159265359f;
 const float c_twopi = 2.0f * c_pi;
 const float c_rayPosNormalNudge = 0.01f;
-const int c_numBounces = 100;
+const int c_numBounces = 10;
 const float c_superFar = 10000.0f;
 const float c_minimumRayHitTime = 0.1f;
-const int c_numRendersPerFrame = 5;
+const int c_numRendersPerFrame = 1;
 
 bool TestTriangleTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info,
     in vec3 a, in vec3 b, in vec3 c, in vec3 precomputedNormal)
