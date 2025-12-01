@@ -8,7 +8,7 @@
 #include <vector>
 #include "Vectoriel.hpp"
 #include "GameObject.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 
 class App;
 
@@ -233,8 +233,9 @@ public:
     /**
      * @brief Fonction de rendu de l'interface graphique.
      * @param app Pointeur sur l'application
+     * @param p_open Pointer to window open state (optional)
      */
-    void renderUI(App *app);
+    void renderUI(App *app, bool *p_open = nullptr);
 
     void setCurrentColorRGBA(const glm::vec4 &rgba, bool applyFill = true,
         bool applyOutline = true);

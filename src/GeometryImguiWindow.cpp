@@ -5,9 +5,16 @@
 #include <filesystem>
 #include <format>
 
-void GeometryImguiWindow::render()
+void GeometryImguiWindow::render(bool *p_open)
 {
-    ImGui::Begin("Spawn objects");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Geometry", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Primitives");
 
@@ -36,6 +43,20 @@ void GeometryImguiWindow::render()
     if (ImGui::Button("Spawn Cylinder") && onSpawnCylinder) {
         onSpawnCylinder(m_cylinderRadius, m_cylinderHeight, m_cylinderSectors);
         m_cylinderCount++;
+    }
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Plane");
+    ImGui::SliderFloat("Plane Width", &m_planeWidth, 0.5f, 20.0f);
+    ImGui::SliderFloat("Plane Height", &m_planeHeight, 0.5f, 20.0f);
+    ImGui::InputFloat3("Normal", m_planeNormal);
+    if (ImGui::Button("Spawn Plane") && onSpawnPlane) {
+        glm::vec3 normal(m_planeNormal[0], m_planeNormal[1], m_planeNormal[2]);
+        if (glm::length(normal) < 0.001f) {
+            normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
+        onSpawnPlane(m_planeWidth, m_planeHeight, glm::normalize(normal));
+        m_planeCount++;
     }
 
     ImGui::Spacing();

@@ -99,7 +99,6 @@ int TextureLibrary::loadNormalMap(const std::string &filepath)
     return handle;
 }
 
-
 int TextureLibrary::createCheckerboardTexture(const std::string &name,
     int width, int height, const glm::vec3 &colorA, const glm::vec3 &colorB,
     int checks, bool srgb)
@@ -402,7 +401,6 @@ int TextureLibrary::storeNormalMapResource(NormalMapResource &&resource)
     m_normalMapPool.push_back(std::move(resource));
     return m_normalMapPool.back().handle;
 }
-
 
 int TextureLibrary::loadTextureInternal(const std::string &filepath, bool srgb)
 {

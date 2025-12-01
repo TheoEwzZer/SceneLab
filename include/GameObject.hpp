@@ -8,6 +8,7 @@ protected:
     glm::vec3 m_position { 0.0f }, m_rotation { 0.0f }, m_scale { 1.0f };
     static const auto OBJ_MAX_NAME_SIZE = 25;
     mutable bool m_transformDirty = true;
+    bool m_hasMoved = true;
 
     glm::vec3 m_aabbCorner1 { 0.0f };
     glm::vec3 m_aabbCorner2 { 0.0f };
@@ -25,13 +26,17 @@ public:
 
     void setName(const std::string &name);
 
+    void setHasMoved(bool moved) { m_hasMoved = moved; }
+
     const glm::vec3 &getPosition() const { return m_position; }
 
     const glm::vec3 &getRotation() const { return m_rotation; }
 
     const glm::vec3 &getScale() const { return m_scale; }
 
-    bool hasTransformChanged() const { return m_transformDirty; }
+    bool isTransformDirty() const { return m_transformDirty; }
+
+    bool hasTransformChanged() const { return m_hasMoved; }
 
     std::vector<float> getVertices() { return (std::vector<float>(8, 0.0f)); };
 

@@ -72,8 +72,8 @@ void Object2D::init(const std::vector<float> &vertices,
         processedVertices.data(), GL_STATIC_DRAW);
 
     if (!processedVertices.empty()) {
-        m_color = glm::vec3(
-            processedVertices[3], processedVertices[4], processedVertices[5]);
+        setColor({ processedVertices[3], processedVertices[4],
+            processedVertices[5] });
     }
 
     if (hasIndices) {
@@ -107,9 +107,7 @@ void Object2D::init(const std::vector<float> &vertices,
     isActive = true;
 }
 
-void Object2D::setDrawMode(const GLenum mode) {
-    m_drawMode = mode;
-}
+void Object2D::setDrawMode(const GLenum mode) { m_drawMode = mode; }
 
 void Object2D::draw(const ShaderProgram &vectorial,
     [[maybe_unused]] const ShaderProgram &pointLight,
@@ -124,6 +122,7 @@ void Object2D::draw(const ShaderProgram &vectorial,
     const bool useTexture = this->m_useTexture && texture
         && texture->target == TextureTarget::Texture2D;
     vectorial.setBool("useTexture", useTexture);
+
     vectorial.setInt("filterMode", static_cast<int>(filterMode));
     glm::vec2 texelSize = useTexture
         ? glm::vec2(1.0f / static_cast<float>(texture->size.x),

@@ -1,6 +1,6 @@
 #include "Image.hpp"
 #include "SceneGraph.hpp"
-#include "renderer/interface/ARenderer.hpp"
+#include "renderer/interface/IRenderer.hpp"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -30,7 +30,7 @@
 
 #include "objects/Object3D.hpp"
 
-Image::Image(std::unique_ptr<ARenderer> &renderer, SceneGraph &sceneGraph,
+Image::Image(std::unique_ptr<IRenderer> &renderer, SceneGraph &sceneGraph,
     const CameraManager &cameraManager) :
     m_renderer(renderer),
     m_sceneGraph(sceneGraph), m_cameraManager(cameraManager)
@@ -135,9 +135,9 @@ bool Image::addImageObjectAtScreenPos(
 
         newObject.setPosition(worldPos);
         // Set AABB for the image quad (default 1.0x1.0 size)
-        newObject.setAABB(glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f));
-        
-        auto  node = std::make_unique<SceneGraph::Node>();
+newObject.setAABB(glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f));
+
+        auto node = std::make_unique<SceneGraph::Node>();
         node->setData(newObject);
         m_sceneGraph.getRoot()->addChild(std::move(node));
 
@@ -472,9 +472,16 @@ void Image::captureAndWriteCurrentFrame(GLFWwindow *window)
     }
 }
 
-void Image::renderUI()
+void Image::renderUI(bool *p_open)
 {
-    ImGui::Begin("Image");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Image", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Image Import");
     ImGui::Text("Drag and drop image files into the window");

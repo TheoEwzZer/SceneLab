@@ -1,7 +1,7 @@
 #include "GeometryGenerator.hpp"
 
 #include <cmath>
-
+#include <glm/gtc/matrix_transform.hpp>
 
 GData GeometryGenerator::generateSphere(float radius, int sectors, int stacks)
 {
@@ -55,17 +55,17 @@ GData GeometryGenerator::generateSphere(float radius, int sectors, int stacks)
                     data.vertices, positions[k1], texCoords[k1], normals[k1]);
                 Vertex::addVertex(
                     data.vertices, positions[k2], texCoords[k2], normals[k2]);
-                Vertex::addVertex(data.vertices, positions[k1 + 1], texCoords[k1 + 1],
-                    normals[k1 + 1]);
+                Vertex::addVertex(data.vertices, positions[k1 + 1],
+                    texCoords[k1 + 1], normals[k1 + 1]);
             }
 
             if (i != (stacks - 1)) {
-                Vertex::addVertex(data.vertices, positions[k1 + 1], texCoords[k1 + 1],
-                    normals[k1 + 1]);
+                Vertex::addVertex(data.vertices, positions[k1 + 1],
+                    texCoords[k1 + 1], normals[k1 + 1]);
                 Vertex::addVertex(
                     data.vertices, positions[k2], texCoords[k2], normals[k2]);
-                Vertex::addVertex(data.vertices, positions[k2 + 1], texCoords[k2 + 1],
-                    normals[k2 + 1]);
+                Vertex::addVertex(data.vertices, positions[k2 + 1],
+                    texCoords[k2 + 1], normals[k2 + 1]);
             }
         }
     }
@@ -99,8 +99,9 @@ GData GeometryGenerator::generateCube(float size)
     normal = glm::vec3(0.0f, 0.0f, -1.0f);
     Vertex::addVertex(data.vertices, glm::vec3(halfSize, -halfSize, -halfSize),
         glm::vec2(0.0f, 0.0f), normal);
-    Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, -halfSize),
-        glm::vec2(1.0f, 0.0f), normal);
+    Vertex::addVertex(data.vertices,
+        glm::vec3(-halfSize, -halfSize, -halfSize), glm::vec2(1.0f, 0.0f),
+        normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, halfSize, -halfSize),
         glm::vec2(1.0f, 1.0f), normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, halfSize, -halfSize),
@@ -111,8 +112,9 @@ GData GeometryGenerator::generateCube(float size)
         glm::vec2(0.0f, 0.0f), normal);
 
     normal = glm::vec3(-1.0f, 0.0f, 0.0f);
-    Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, -halfSize),
-        glm::vec2(0.0f, 0.0f), normal);
+    Vertex::addVertex(data.vertices,
+        glm::vec3(-halfSize, -halfSize, -halfSize), glm::vec2(0.0f, 0.0f),
+        normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, halfSize),
         glm::vec2(1.0f, 0.0f), normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, halfSize, halfSize),
@@ -121,8 +123,9 @@ GData GeometryGenerator::generateCube(float size)
         glm::vec2(1.0f, 1.0f), normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, halfSize, -halfSize),
         glm::vec2(0.0f, 1.0f), normal);
-    Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, -halfSize),
-        glm::vec2(0.0f, 0.0f), normal);
+    Vertex::addVertex(data.vertices,
+        glm::vec3(-halfSize, -halfSize, -halfSize), glm::vec2(0.0f, 0.0f),
+        normal);
 
     normal = glm::vec3(1.0f, 0.0f, 0.0f);
     Vertex::addVertex(data.vertices, glm::vec3(halfSize, -halfSize, halfSize),
@@ -139,8 +142,9 @@ GData GeometryGenerator::generateCube(float size)
         glm::vec2(0.0f, 0.0f), normal);
 
     normal = glm::vec3(0.0f, -1.0f, 0.0f);
-    Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, -halfSize),
-        glm::vec2(0.0f, 0.0f), normal);
+    Vertex::addVertex(data.vertices,
+        glm::vec3(-halfSize, -halfSize, -halfSize), glm::vec2(0.0f, 0.0f),
+        normal);
     Vertex::addVertex(data.vertices, glm::vec3(halfSize, -halfSize, -halfSize),
         glm::vec2(1.0f, 0.0f), normal);
     Vertex::addVertex(data.vertices, glm::vec3(halfSize, -halfSize, halfSize),
@@ -149,8 +153,9 @@ GData GeometryGenerator::generateCube(float size)
         glm::vec2(1.0f, 1.0f), normal);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, halfSize),
         glm::vec2(0.0f, 1.0f), normal);
-    Vertex::addVertex(data.vertices, glm::vec3(-halfSize, -halfSize, -halfSize),
-        glm::vec2(0.0f, 0.0f), normal);
+    Vertex::addVertex(data.vertices,
+        glm::vec3(-halfSize, -halfSize, -halfSize), glm::vec2(0.0f, 0.0f),
+        normal);
 
     normal = glm::vec3(0.0f, 1.0f, 0.0f);
     Vertex::addVertex(data.vertices, glm::vec3(-halfSize, halfSize, halfSize),
@@ -224,7 +229,8 @@ GData GeometryGenerator::generateCylinder(
         glm::vec3 p1(radius * cosf(angle1), halfHeight, radius * sinf(angle1));
         glm::vec3 p2(radius * cosf(angle2), halfHeight, radius * sinf(angle2));
 
-        Vertex::addVertex(data.vertices, topCenter, glm::vec2(0.5f, 0.5f), topNormal);
+        Vertex::addVertex(
+            data.vertices, topCenter, glm::vec2(0.5f, 0.5f), topNormal);
         Vertex::addVertex(data.vertices, p1,
             glm::vec2(0.5f + 0.5f * cosf(angle1), 0.5f + 0.5f * sinf(angle1)),
             topNormal);
@@ -256,5 +262,42 @@ GData GeometryGenerator::generateCylinder(
     }
 
     Vertex::computeTangents(data.vertices);
+    return data;
+}
+
+GData GeometryGenerator::generatePlane(
+    float width, float height, const glm::vec3 &normal)
+{
+    GData data;
+    data.vertices.reserve(6 * 8);
+
+    float halfWidth = width * 0.5f;
+    float halfHeight = height * 0.5f;
+
+    glm::vec3 n = glm::normalize(normal);
+
+    glm::vec3 up = (std::abs(glm::dot(n, glm::vec3(0, 1, 0))) > 0.99f)
+        ? glm::vec3(0, 0, 1)
+        : glm::vec3(0, 1, 0);
+
+    glm::vec3 right = glm::normalize(glm::cross(up, n));
+    glm::vec3 forward = glm::normalize(glm::cross(n, right));
+
+    glm::vec3 p0 = -right * halfWidth - forward * halfHeight;
+    glm::vec3 p1 = right * halfWidth - forward * halfHeight;
+    glm::vec3 p2 = right * halfWidth + forward * halfHeight;
+    glm::vec3 p3 = -right * halfWidth + forward * halfHeight;
+
+    data.aabbCorner1 = glm::min(glm::min(p0, p1), glm::min(p2, p3));
+    data.aabbCorner2 = glm::max(glm::max(p0, p1), glm::max(p2, p3));
+
+    Vertex::addVertex(data.vertices, p0, glm::vec2(0.0f, 0.0f), n);
+    Vertex::addVertex(data.vertices, p1, glm::vec2(1.0f, 0.0f), n);
+    Vertex::addVertex(data.vertices, p2, glm::vec2(1.0f, 1.0f), n);
+
+    Vertex::addVertex(data.vertices, p2, glm::vec2(1.0f, 1.0f), n);
+    Vertex::addVertex(data.vertices, p3, glm::vec2(0.0f, 1.0f), n);
+    Vertex::addVertex(data.vertices, p0, glm::vec2(0.0f, 0.0f), n);
+
     return data;
 }

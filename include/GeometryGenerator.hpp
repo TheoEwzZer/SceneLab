@@ -32,6 +32,9 @@ public:
     // sectors = vertical splits
     static GData generateCylinder(float radius, float height, int sectors);
 
+    static GData generatePlane(
+        float width, float height, const glm::vec3 &normal);
+
 private:
 };
 

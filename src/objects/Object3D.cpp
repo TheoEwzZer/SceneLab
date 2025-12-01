@@ -3,12 +3,13 @@
 //
 
 #include "../../include/objects/Object3D.hpp"
+#include "objects/Material.hpp"
 
 Object3D::Object3D(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices, const glm::vec3 &color)
 {
     init(vertices, indices);
-    m_color = color;
+    setColor(color);
 }
 
 Object3D::Object3D(const std::vector<Vertex> &vertices,
@@ -21,6 +22,24 @@ Object3D::Object3D(const std::vector<Vertex> &vertices,
 void Object3D::init(const std::vector<Vertex> &vertices,
     const std::vector<unsigned int> &indices)
 {
+    m_vertices.reserve(vertices.size() * 14);
+    for (const auto &v : vertices) {
+        m_vertices.push_back(v.position.x);
+        m_vertices.push_back(v.position.y);
+        m_vertices.push_back(v.position.z);
+        m_vertices.push_back(v.texCoord.x);
+        m_vertices.push_back(v.texCoord.y);
+        m_vertices.push_back(v.normal.x);
+        m_vertices.push_back(v.normal.y);
+        m_vertices.push_back(v.normal.z);
+        m_vertices.push_back(v.tangent.x);
+        m_vertices.push_back(v.tangent.y);
+        m_vertices.push_back(v.tangent.z);
+        m_vertices.push_back(v.bitangent.x);
+        m_vertices.push_back(v.bitangent.y);
+        m_vertices.push_back(v.bitangent.z);
+    }
+    m_indices = indices;
     indexCount = vertices.size();
 
     glGenVertexArrays(1, &VAO);
@@ -30,8 +49,8 @@ void Object3D::init(const std::vector<Vertex> &vertices,
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
     useIndices = !indices.empty();
-    glBufferData(GL_ARRAY_BUFFER, indexCount * sizeof(Vertex),
-        vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, indexCount * sizeof(Vertex), vertices.data(),
+        GL_STATIC_DRAW);
 
     if (useIndices) {
         glGenBuffers(1, &EBO);
@@ -43,20 +62,20 @@ void Object3D::init(const std::vector<Vertex> &vertices,
         useIndices = true;
     }
 
-    glVertexAttribPointer(
-        0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        (void *)offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, texCoord));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        (void *)offsetof(Vertex, texCoord));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(
-        2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        (void *)offsetof(Vertex, normal));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(
-        3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, tangent));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        (void *)offsetof(Vertex, tangent));
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(
-        4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+        (void *)offsetof(Vertex, bitangent));
     glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 
@@ -81,7 +100,8 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
 
     const bool useNormalMap = this->m_useNormalMap && normalMap;
     lighting.setBool("useNormalMap", useNormalMap);
-    lighting.setVec3("objectColor", m_color);
+
+    m_mat.setShaderUniforms(lighting);
     lighting.setInt("filterMode", static_cast<int>(filterMode));
     const glm::vec2 texelSize = useTexture
         ? glm::vec2(1.0f / static_cast<float>(texture->size.x),

@@ -9,15 +9,16 @@
 #include "shapes/Triangulation.hpp"
 
 class DynamicGeometryManager {
-    public:
-    explicit DynamicGeometryManager(ARenderer& renderer);
+public:
+    explicit DynamicGeometryManager(IRenderer &renderer);
 
-    Triangulation* getLastEmpty();
+    Triangulation *getLastEmpty();
     void addCurve(std::unique_ptr<ParametricCurve> curve);
     void addMesh(std::unique_ptr<Triangulation> mesh);
     void updateGeometry();
+
 private:
-    ARenderer& m_renderer;
+    IRenderer &m_renderer;
     std::vector<std::unique_ptr<ParametricCurve>> m_curves;
     std::vector<std::unique_ptr<Triangulation>> m_triangulation;
 };

@@ -9,15 +9,17 @@ void ParametricCurve::addControlPoint(SceneGraph::Node *node)
     m_controlPoints.push_back(node);
 }
 
-void ParametricCurve::registerCurve(const int id)
-{
-    m_renderableId = id;
-}
+void ParametricCurve::registerCurve(const int id) { m_renderableId = id; }
 
 float ParametricCurve::tj(
     const glm::vec3 &p0, const glm::vec3 &p1, float alpha)
 {
-    return pow(glm::length(p1 - p0), alpha);
+    float dist = glm::length(p1 - p0);
+    // Avoid zero distance which causes division issues in Catmull-Rom
+    if (dist < 1e-6f) {
+        dist = 1e-6f;
+    }
+    return pow(dist, alpha);
 }
 
 glm::vec3 ParametricCurve::catmullRomSample(const glm::vec3 &P0,
@@ -31,8 +33,11 @@ glm::vec3 ParametricCurve::catmullRomSample(const glm::vec3 &P0,
 
     const float tt = t1 + t * (t2 - t1);
 
-    auto interp = [](const glm::vec3 &A, const glm::vec3 &B, float ta, float tb, float t) {
-        if (fabs(tb - ta) < 1e-6f) return A;
+    auto interp = [](const glm::vec3 &A, const glm::vec3 &B, float ta,
+                      float tb, float t) {
+        if (fabs(tb - ta) < 1e-6f) {
+            return A;
+        }
         float l = (t - ta) / (tb - ta);
         return A + l * (B - A);
     };
@@ -53,13 +58,20 @@ std::vector<float> ParametricCurve::buildCatmullRomPoints(
 {
     std::vector<float> out;
     const int n = controls.size();
-    if (n < 2) return out;
+    if (n < 2) {
+        return out;
+    }
 
-    // For endpoints, mirror extrapolation (common choice) so curve touches first and last point.
-    // Use virtual points: P_-1 = P0 + (P0 - P1) and P_{n} = P_{n-1} + (P_{n-1} - P_{n-2})
-    auto get = [&](const int i)->glm::vec3 {
-        if (i < 0) return controls[0] + (controls[0] - controls[1]);
-        if (i >= n) return controls[n-1] + (controls[n-1] - controls[n-2]);
+    // For endpoints, mirror extrapolation (common choice) so curve touches
+    // first and last point. Use virtual points: P_-1 = P0 + (P0 - P1) and
+    // P_{n} = P_{n-1} + (P_{n-1} - P_{n-2})
+    auto get = [&](const int i) -> glm::vec3 {
+        if (i < 0) {
+            return controls[0] + (controls[0] - controls[1]);
+        }
+        if (i >= n) {
+            return controls[n - 1] + (controls[n - 1] - controls[n - 2]);
+        }
         return controls[i];
     };
 
@@ -87,18 +99,25 @@ std::vector<float> ParametricCurve::buildCatmullRomPoints(
     return out;
 }
 
-
-void ParametricCurve::updateGeometry(ARenderer &renderer)
+void ParametricCurve::updateGeometry(IRenderer &renderer)
 {
+    if (m_renderableId < 0) {
+        return;
+    }
+
     std::vector<glm::vec3> controls;
 
     for (auto *point : m_controlPoints) {
         if (point) {
-            auto& obj = point->getData();
+            auto &obj = point->getData();
             controls.push_back(obj.getPosition());
         }
     }
+
+    // Need at least 2 points to build a curve
+    if (controls.size() < 2) {
+        return;
+    }
+
     renderer.updateGeometry(m_renderableId, buildCatmullRomPoints(controls));
 }
-
-

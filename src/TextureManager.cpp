@@ -15,9 +15,16 @@ TextureManager::TextureManager(SceneGraph &sceneGraph,
 {
 }
 
-void TextureManager::renderUI()
+void TextureManager::renderUI(bool *p_open)
 {
-    ImGui::Begin("Textures");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Texture", p_open)) {
+        ImGui::End();
+        return;
+    }
 
     renderSelectionPanel();
 
@@ -32,7 +39,7 @@ void TextureManager::renderUI()
     ImGui::SeparatorText("Tone Mapping");
     renderToneMappingPanel();
 
-    ImGui::SeparatorText("Skybox Cubemaps");
+    ImGui::SeparatorText("Cubemap / Environment");
     renderCubemapPanel();
 
     ImGui::End();
@@ -205,7 +212,8 @@ void TextureManager::renderMapSelectionPanel()
         }
 
         if (!mapName.empty()) {
-            const int currentHandle = m_renderer.getObjectNormalMapHandle(objectId);
+            const int currentHandle
+                = m_renderer.getObjectNormalMapHandle(objectId);
             int currentIndex = 0;
             for (size_t i = 0; i < mapHandle.size(); ++i) {
                 if (mapHandle[i] == currentHandle) {
@@ -216,8 +224,7 @@ void TextureManager::renderMapSelectionPanel()
             if (ImGui::Combo("Normal Map", &currentIndex, mapName.data(),
                     static_cast<int>(mapName.size()))) {
                 if (currentIndex >= 0
-                    && currentIndex
-                        < static_cast<int>(mapHandle.size())) {
+                    && currentIndex < static_cast<int>(mapHandle.size())) {
                     m_renderer.assignNormalMapToObject(
                         objectId, mapHandle[currentIndex]);
                     m_renderer.setObjectUseNormalMap(objectId, true);
@@ -236,7 +243,8 @@ void TextureManager::renderMapSelectionPanel()
         }
 
         int normalMapHandle = m_renderer.getObjectNormalMapHandle(objectId);
-        if (const NormalMapResource *res = m_renderer.getNormalMapResource(normalMapHandle)) {
+        if (const NormalMapResource *res
+            = m_renderer.getNormalMapResource(normalMapHandle)) {
             ImGui::Text("Selected normal map: %s", res->name.c_str());
             ImGui::Text("Size: %dx%d", static_cast<int>(res->size.x),
                 static_cast<int>(res->size.y));
@@ -245,8 +253,7 @@ void TextureManager::renderMapSelectionPanel()
     } else {
         ImGui::Text("%zu objects selected", objectIds.size());
         if (!mapName.empty()) {
-            if (m_selectedNormalMapIndex
-                >= static_cast<int>(mapName.size())) {
+            if (m_selectedNormalMapIndex >= static_cast<int>(mapName.size())) {
                 m_selectedNormalMapIndex = 0;
             }
             ImGui::Combo("Map##multi", &m_selectedNormalMapIndex,
@@ -433,7 +440,6 @@ void TextureManager::renderNormalMapping()
     }
 }
 
-
 void TextureManager::renderToneMappingPanel()
 {
     int toneIndex = static_cast<int>(m_renderer.getToneMappingMode());
@@ -469,8 +475,12 @@ void TextureManager::renderCubemapPanel()
                 + std::to_string(
                     static_cast<int>(m_renderer.getCubemapHandles().size())
                     + 1);
-            m_renderer.loadCubemapFromEquirectangular(
+            int newCubemapHandle = m_renderer.loadCubemapFromEquirectangular(
                 cubemapName, filePath, 512, m_useSRGB);
+            // Automatically set the new cubemap as active skybox
+            if (newCubemapHandle >= 0) {
+                m_renderer.setActiveCubemap(newCubemapHandle);
+            }
         }
         ImGuiFileDialog::Instance()->Close();
     }
@@ -555,7 +565,8 @@ void TextureManager::assignNormalMapToSelection(int normalMapHandle)
         if (!node) {
             continue;
         }
-        if (const int rendererId = node->getData().rendererId; rendererId >= 0) {
+        if (const int rendererId = node->getData().rendererId;
+            rendererId >= 0) {
             m_renderer.assignNormalMapToObject(rendererId, normalMapHandle);
             m_renderer.setObjectUseNormalMap(rendererId, true);
         }

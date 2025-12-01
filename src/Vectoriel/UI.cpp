@@ -188,9 +188,16 @@ void UIDrawer::renderUIPrimitive(App *app)
     }
 }
 
-void UIDrawer::renderUI(App *app)
+void UIDrawer::renderUI(App *app, bool *p_open)
 {
-    ImGui::Begin("Dessin vectoriel");
+    if (p_open && !*p_open) {
+        return;
+    }
+
+    if (!ImGui::Begin("Vector", p_open)) {
+        ImGui::End();
+        return;
+    }
     ImGui::Separator();
     ImGui::Text("Primitives");
 

@@ -32,6 +32,6 @@ void main()
     FragPos = vec3(model * vec4(aPos, 1.0));
     TexCoord = aTexCoord;
 
-    // pass the transformed normal to fragment shader
+// pass the transformed normal to fragment shader
     Normal = N;
 }

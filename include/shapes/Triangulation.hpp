@@ -8,7 +8,7 @@
 #include "glm/ext/scalar_uint_sized.hpp"
 
 #include "../SceneGraph.hpp"
-#include "../renderer/interface/ARenderer.hpp"
+#include "../renderer/interface/IRenderer.hpp"
 
 class Triangulation {
     struct Triangle {
@@ -22,28 +22,42 @@ class Triangulation {
 
     struct Edge {
         uint32_t a, b;
+
         bool operator==(const Edge &e) const
         {
             return (a == e.a && b == e.b) || (a == e.b && b == e.a);
         }
     };
 
-    static float det(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c);
+    static float det(
+        const glm::vec2 &a, const glm::vec2 &b, const glm::vec2 &c);
 
-    static bool inCircle(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& p);
+    static bool inCircle(const glm::vec2 &a, const glm::vec2 &b,
+        const glm::vec2 &c, const glm::vec2 &p);
 
-    static std::vector<Triangle> triangulate(const std::vector<glm::vec3>& pts3D);
+    static std::vector<Triangle> triangulate(
+        const std::vector<glm::vec3> &pts3D);
 
-    public:
-        void addPoint(SceneGraph::Node* node);
-        void registerRenderable(int id);
-        void updateGeometry(ARenderer& renderer) const;
-        [[nodiscard]] bool isRenderable() const;
-        [[nodiscard]] bool hasPoints() const;
-    private:
-    std::vector<SceneGraph::Node*> m_controlPoints;
+public:
+    void addPoint(SceneGraph::Node *node);
+    void registerRenderable(int id);
+    void updateGeometry(IRenderer &renderer) const;
+    [[nodiscard]] bool isRenderable() const;
+    [[nodiscard]] bool hasPoints() const;
+
+    [[nodiscard]] bool canTriangulate() const
+    {
+        return m_controlPoints.size() >= 3;
+    }
+
+    [[nodiscard]] size_t getPointCount() const
+    {
+        return m_controlPoints.size();
+    }
+
+private:
+    std::vector<SceneGraph::Node *> m_controlPoints;
     int m_renderableId = -1;
-
 };
 
 #endif // SCENELAB_TRIANGULATION_H
