@@ -244,7 +244,14 @@ void main()
     vec4 sampledColor = useTexture ? texture(ourTexture, TexCoord)
                                    : vec4(1.0, 1.0, 1.0, 1.0);
     vec3 diffuseTextureColor = applyFilter(sampledColor.rgb);
-    vec3 normal = normalize(Normal);
+
+    vec3 normal;
+    if (useNormalMap) {
+        vec3 n = texture(normalMap, TexCoord).rgb * 2.0 - 1.0;
+        normal = normalize(TBN * n);
+    } else {
+        normal = normalize(Normal);
+    }
 
     LightOutput LOutput;
     vec3 totalLight = vec3(0.0);

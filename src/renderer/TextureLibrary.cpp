@@ -72,6 +72,23 @@ int TextureLibrary::loadNormalMap(const std::string &filepath)
         return -1;
     }
 
+    GLenum format = GL_RGB;
+    switch (channels) {
+        case 1:
+            format = GL_RED;
+            break;
+        case 2:
+            format = GL_RG;
+            break;
+        case 3:
+            format = GL_RGB;
+            break;
+        case 4:
+        default:
+            format = GL_RGBA;
+            break;
+    }
+
     unsigned int mapId = 0;
     glGenTextures(1, &mapId);
     glBindTexture(GL_TEXTURE_2D, mapId);
@@ -80,7 +97,7 @@ int TextureLibrary::loadNormalMap(const std::string &filepath)
     glTexParameteri(
         GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, format,
         GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
