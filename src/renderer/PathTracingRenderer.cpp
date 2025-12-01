@@ -1145,48 +1145,107 @@ void PathTracingRenderer::rebuildTriangleArray()
         } else {
             // Mesh - convert to triangles as before
             objData.triangleStartIndex = static_cast<int>(m_triangles.size());
-            std::vector<float> vertices = objData.renderObject->getVertices();
+            std::vector<float> &vertices = objData.renderObject->getVertices();
+            std::vector<unsigned int> &indices
+                = objData.renderObject->getIndices();
 
-            // Vertices are in format: x,y,z, u,v, nx,ny,nz per vertex (8
-            // floats) Each triangle has 3 vertices, so 24 floats per triangle
-            int stride = 8; // position (3) + texcoord (2) + normal (3)
+            // Vertices are in format: x,y,z, u,v, nx,ny,nz, tx,ty,tz, bx,by,bz
+            // per vertex (14 floats)
+            int stride = 14; // position (3) + texcoord (2) + normal (3)
+                             // + tangent (3) + bitangent (3)
 
-            for (size_t i = 0; i < vertices.size(); i += stride * 3) {
-                if (i + stride * 3 > vertices.size()) {
-                    break;
+            auto getVertex = [&](size_t idx) -> glm::vec3 {
+                size_t base = idx * stride;
+                if (base + 2 >= vertices.size()) {
+                    return glm::vec3(0.0f);
                 }
+                return glm::vec3(
+                    vertices[base], vertices[base + 1], vertices[base + 2]);
+            };
 
-                Triangle t;
+            if (!indices.empty()) {
+                // Use indexed geometry
+                for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+                    Triangle t;
 
-                glm::vec4 v0 = objData.transform
-                    * glm::vec4(
-                        vertices[i], vertices[i + 1], vertices[i + 2], 1.0f);
-                glm::vec4 v1 = objData.transform
-                    * glm::vec4(vertices[i + stride], vertices[i + stride + 1],
-                        vertices[i + stride + 2], 1.0f);
-                glm::vec4 v2 = objData.transform
-                    * glm::vec4(vertices[i + stride * 2],
-                        vertices[i + stride * 2 + 1],
-                        vertices[i + stride * 2 + 2], 1.0f);
+                    glm::vec3 localV0 = getVertex(indices[i]);
+                    glm::vec3 localV1 = getVertex(indices[i + 1]);
+                    glm::vec3 localV2 = getVertex(indices[i + 2]);
 
-                t.v0 = glm::vec3(v0) / v0.w;
-                t.v1 = glm::vec3(v1) / v1.w;
-                t.v2 = glm::vec3(v2) / v2.w;
+                    glm::vec4 v0
+                        = objData.transform * glm::vec4(localV0, 1.0f);
+                    glm::vec4 v1
+                        = objData.transform * glm::vec4(localV1, 1.0f);
+                    glm::vec4 v2
+                        = objData.transform * glm::vec4(localV2, 1.0f);
 
-                // Precompute face normal
-                glm::vec3 e0 = t.v1 - t.v0;
-                glm::vec3 e1 = t.v0 - t.v2;
-                t.normal = glm::normalize(glm::cross(e1, e0));
+                    t.v0 = glm::vec3(v0) / v0.w;
+                    t.v1 = glm::vec3(v1) / v1.w;
+                    t.v2 = glm::vec3(v2) / v2.w;
 
-                t.color = color;
-                t.emissive = emissive;
-                t.percentSpecular = percentSpecular;
-                t.roughness = roughness;
-                t.specularColor = specularColor;
-                t.indexOfRefraction = indexOfRefraction;
-                t.refractionChance = refractionChance;
+                    // Precompute face normal
+                    glm::vec3 e0 = t.v1 - t.v0;
+                    glm::vec3 e1 = t.v0 - t.v2;
+                    glm::vec3 crossProduct = glm::cross(e1, e0);
+                    float len = glm::length(crossProduct);
+                    if (len > 1e-8f) {
+                        t.normal = crossProduct / len;
+                    } else {
+                        t.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+                    }
 
-                m_triangles.push_back(t);
+                    t.color = color;
+                    t.emissive = emissive;
+                    t.percentSpecular = percentSpecular;
+                    t.roughness = roughness;
+                    t.specularColor = specularColor;
+                    t.indexOfRefraction = indexOfRefraction;
+                    t.refractionChance = refractionChance;
+
+                    m_triangles.push_back(t);
+                }
+            } else {
+                // Non-indexed geometry
+                size_t numVertices = vertices.size() / stride;
+                for (size_t i = 0; i + 2 < numVertices; i += 3) {
+                    Triangle t;
+
+                    glm::vec3 localV0 = getVertex(i);
+                    glm::vec3 localV1 = getVertex(i + 1);
+                    glm::vec3 localV2 = getVertex(i + 2);
+
+                    glm::vec4 v0
+                        = objData.transform * glm::vec4(localV0, 1.0f);
+                    glm::vec4 v1
+                        = objData.transform * glm::vec4(localV1, 1.0f);
+                    glm::vec4 v2
+                        = objData.transform * glm::vec4(localV2, 1.0f);
+
+                    t.v0 = glm::vec3(v0) / v0.w;
+                    t.v1 = glm::vec3(v1) / v1.w;
+                    t.v2 = glm::vec3(v2) / v2.w;
+
+                    // Precompute face normal
+                    glm::vec3 e0 = t.v1 - t.v0;
+                    glm::vec3 e1 = t.v0 - t.v2;
+                    glm::vec3 crossProduct = glm::cross(e1, e0);
+                    float len = glm::length(crossProduct);
+                    if (len > 1e-8f) {
+                        t.normal = crossProduct / len;
+                    } else {
+                        t.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+                    }
+
+                    t.color = color;
+                    t.emissive = emissive;
+                    t.percentSpecular = percentSpecular;
+                    t.roughness = roughness;
+                    t.specularColor = specularColor;
+                    t.indexOfRefraction = indexOfRefraction;
+                    t.refractionChance = refractionChance;
+
+                    m_triangles.push_back(t);
+                }
             }
 
             objData.triangleCount = static_cast<int>(m_triangles.size())
