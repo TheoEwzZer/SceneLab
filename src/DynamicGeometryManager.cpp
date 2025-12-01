@@ -4,7 +4,8 @@
 
 #include "../include/DynamicGeometryManager.hpp"
 
-DynamicGeometryManager::DynamicGeometryManager(IRenderer &renderer) :
+DynamicGeometryManager::DynamicGeometryManager(
+    std::unique_ptr<IRenderer> &renderer) :
     m_renderer(renderer)
 {
 }
@@ -17,11 +18,11 @@ void DynamicGeometryManager::addCurve(std::unique_ptr<ParametricCurve> curve)
 void DynamicGeometryManager::updateGeometry()
 {
     for (const auto &curve : m_curves) {
-        curve->updateGeometry(m_renderer);
+        curve->updateGeometry(*m_renderer);
     }
     for (const auto &mesh : m_triangulation) {
         if (mesh->isRenderable()) {
-            mesh->updateGeometry(m_renderer);
+            mesh->updateGeometry(*m_renderer);
         }
     }
 }
@@ -39,4 +40,14 @@ Triangulation *DynamicGeometryManager::getLastEmpty()
     Triangulation *ptr = tri.get();
     m_triangulation.push_back(std::move(tri));
     return ptr;
+}
+
+void DynamicGeometryManager::invalidateRenderables()
+{
+    for (const auto &curve : m_curves) {
+        curve->m_renderableId = -1;
+    }
+    for (const auto &mesh : m_triangulation) {
+        mesh->registerRenderable(-1);
+    }
 }

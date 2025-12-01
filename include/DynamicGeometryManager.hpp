@@ -8,17 +8,20 @@
 #include "shapes/ParametricCurve.hpp"
 #include "shapes/Triangulation.hpp"
 
+#include <memory>
+
 class DynamicGeometryManager {
 public:
-    explicit DynamicGeometryManager(IRenderer &renderer);
+    explicit DynamicGeometryManager(std::unique_ptr<IRenderer> &renderer);
 
     Triangulation *getLastEmpty();
     void addCurve(std::unique_ptr<ParametricCurve> curve);
     void addMesh(std::unique_ptr<Triangulation> mesh);
     void updateGeometry();
+    void invalidateRenderables();
 
 private:
-    IRenderer &m_renderer;
+    std::unique_ptr<IRenderer> &m_renderer;
     std::vector<std::unique_ptr<ParametricCurve>> m_curves;
     std::vector<std::unique_ptr<Triangulation>> m_triangulation;
 };

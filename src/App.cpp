@@ -30,7 +30,7 @@ App::App() : m_window(1920, 1080, "SceneLab")
 
     // Initialize managers
     m_parametricCurveManager
-        = std::make_unique<DynamicGeometryManager>(*m_renderer);
+        = std::make_unique<DynamicGeometryManager>(m_renderer);
     m_geometryManager = std::make_unique<GeometryManager>(
         m_sceneGraph, m_renderer, *m_parametricCurveManager);
     m_transformManager
@@ -431,6 +431,9 @@ void App::switchRenderer()
 {
     // Extract all objects from the old renderer before destroying it
     auto objects = m_renderer->extractAllObjects();
+
+    // Invalidate curve/triangulation renderables (they are not in sceneGraph)
+    m_parametricCurveManager->invalidateRenderables();
 
     // Create new renderer
     if (dynamic_cast<RasterizationRenderer *>(m_renderer.get())) {
