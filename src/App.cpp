@@ -88,9 +88,11 @@ void App::init()
         = GeometryGenerator::generateSphere(0.5f, 36, 18);
     auto lightNode = std::make_unique<SceneGraph::Node>();
     lightNode->setData(GameObject());
-    lightNode->getData().rendererId = m_renderer->registerObject(
-        std::make_unique<Light>(vertices, std::vector<unsigned int> {}),
-        "../assets/wish-you-where-here.jpg");
+    auto pointLight
+        = std::make_unique<Light>(vertices, std::vector<unsigned int> {});
+    pointLight->setPoint(glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 0.09f, 0.032f);
+    lightNode->getData().rendererId
+        = m_renderer->registerObject(std::move(pointLight));
     lightNode->getData().setAABB(aabbCorner1, aabbCorner2);
     lightNode->getData().setName("Point Light");
     lightNode->getData().setPosition(glm::vec3(3.0f, 3.0f, 3.0f));
