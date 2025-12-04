@@ -85,7 +85,6 @@ void App::init()
     m_sceneGraph.getRoot()->setData(GameObject());
     m_sceneGraph.getRoot()->getData().rendererId = -1; // No renderer
     m_sceneGraph.getRoot()->getData().setName("Scene Root");
-
     // === PATH TRACING DEMO SCENE ===
 
     // Helper lambda to create spheres easily
