@@ -20,13 +20,6 @@
 
 enum class ToneMappingMode : int { Off = 0, Reinhard, ACES };
 
-enum LightingModel {
-    LAMBERT = 0,
-    PHONG = 1,
-    BLINN_PHONG = 2,
-    GOURAUD = 3,
-    PBR = 4 // Physically Based Rendering (Cook-Torrance)
-};
 
 class RasterizationRenderer : public IRenderer {
 private:
@@ -129,6 +122,9 @@ public:
     float getObjectIndexOfRefraction(int objectId) const override;
     void setObjectRefractionChance(int objectId, float chance) override;
     float getObjectRefractionChance(int objectId) const override;
+
+    void setObjectMaterial(int objectId, const Material &mat) override;
+    void setAmbientLight(const glm::vec3 &color) override {m_ambientLightColor = color;};
 
     // PBR material accessors
     void setObjectMetallic(int objectId, float metallic);

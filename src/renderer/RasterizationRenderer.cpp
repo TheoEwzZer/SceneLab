@@ -515,7 +515,7 @@ void RasterizationRenderer::beginFrame()
     m_vectorialShader.setMat4("projection", m_projMatrix);
 
     ShaderProgram *lshaderPtr;
-    if (m_lightingModel == PBR) {
+    if (m_lightingModel == LightingModel::PBR) {
         lshaderPtr = &m_pbrShader;
     } else if (m_lightingModel == GOURAUD) {
         lshaderPtr = &m_gouraudLightingShader;
@@ -627,7 +627,7 @@ void RasterizationRenderer::drawAll(Camera cam)
     m_vectorialShader.setMat4("projection", m_projMatrix);
 
     ShaderProgram *lshaderPtr;
-    if (m_lightingModel == PBR) {
+    if (m_lightingModel == IRenderer::LightingModel::PBR) {
         lshaderPtr = &m_pbrShader;
     } else if (m_lightingModel == GOURAUD) {
         lshaderPtr = &m_gouraudLightingShader;
@@ -646,15 +646,15 @@ void RasterizationRenderer::drawAll(Camera cam)
     lshader.setVec3("ambientLightColor", m_ambientLightColor);
 
     // PBR-specific uniforms and IBL binding
-    if (m_lightingModel == PBR) {
+    if (m_lightingModel == IRenderer::LightingModel::PBR) {
         bool iblActive = m_useIBL && m_currentIBLTextures.valid;
         lshader.setBool("useIBL", iblActive);
-        
+
         // Always set sampler uniforms to valid texture units
         lshader.setInt("irradianceMap", 5);
         lshader.setInt("prefilterMap", 6);
         lshader.setInt("brdfLUT", 7);
-        
+
         if (iblActive) {
             m_iblManager->bindIBLTextures(lshader, m_currentIBLTextures);
         } else {
@@ -792,16 +792,15 @@ void RasterizationRenderer::assignTextureToObject(
 RenderableObject &RasterizationRenderer::getRenderable(int objectId) const
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
-        throw std::invalid_argument("getRendrable: invalid ObjectID");
+        throw std::invalid_argument("getRendrable: raster renderer invalid ObjectID");
     }
     if (auto &obj = m_renderObjects[objectId]) {
         return (*obj);
     }
-    throw std::invalid_argument("getRendrable: invalid ObjectID");
+    throw std::invalid_argument("getRendrable: raster renderer invalid ObjectID");
 }
 
-void RasterizationRenderer::assignMaterialToObject(
-    const int objectId, Material &mat) const
+void RasterizationRenderer::setObjectMaterial(int objectId, const Material &mat)
 {
     if (objectId < 0 || objectId >= static_cast<int>(m_renderObjects.size())) {
         return;

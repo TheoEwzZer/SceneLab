@@ -5,26 +5,22 @@
 #ifndef SCENELAB_LIGHT_H
 #define SCENELAB_LIGHT_H
 
+#include "GeometryGenerator.hpp"
 #include "RenderableObject.hpp"
 #include "glm/fwd.hpp"
+#include "objects/AnalyticalSphere.hpp"
 
 class Light : public RenderableObject {
 public:
     enum Type { Directional, Point, Spot, TypeEnd };
 
-    Light(const std::vector<Vertex> &vertices,
-        const std::vector<unsigned int> &indices, int textureHandle = -1);
-    Light(const std::vector<Vertex> &vertices,
-        const std::vector<unsigned int> &indices, const glm::vec3 &color);
+    Light();
 
     void useShader(ShaderProgram &shader) const override;
 
-    void setDirectional(const glm::vec3 &color);
-    void setPoint(const glm::vec3 &color, float ke, float kl, float kq);
-    void setSpot(
-        const glm::vec3 &color, float ke, float kl, float kq, float p);
-
-    Type getType(void) const { return m_type; };
+    void setDirectional(const glm::vec3 &color, float intensity = 1.0f);
+    void setPoint(const glm::vec3 &color, float kc = 0.5f, float kl = 0.09f, float kq = 1.0f, float intensity = 1.0f);
+    void setSpot(const glm::vec3 &color, float kc = 0.5f, float kl = 0.09f, float kq = 0.03f, float p = 10.0f, float intensity = 1.0f);
 
     std::string getNameStr() const;
 
@@ -39,20 +35,24 @@ public:
 
     float getIntensity() const { return m_intensity; }
 
+    GData &getGData();
+
+    Type getType() const;
+
 protected:
-    void init(const std::vector<Vertex> &vertices,
-        const std::vector<unsigned int> &indices);
+    void init();
     void updateEmissive(); // Sync emissive with color * intensity
 
-    glm::vec3 m_color = { 1.0, 1.0, 1.0 };
-    glm::vec3 m_direction = { -1.0, -1.0, -1.0 };
-    float m_intensity = 1000.0f; // Light intensity for path tracing
+    glm::vec3 m_color = {1.0,1.0,1.0};
+    glm::vec3 m_direction = {-1.0,-1.0,-1.0};
+    float m_intensity = 1.0f;
     float m_kc;
     float m_kl;
     float m_kq;
     float m_p;
 
     Type m_type = Directional;
+    GData m_gdata;
 };
 
 #endif // SCENELAB_LIGHT_H

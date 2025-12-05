@@ -23,6 +23,9 @@ public:
     UIIllumination(TransformManager &tref, SceneGraph &sceneGraph);
     ~UIIllumination();
 
+    void renderLightUI(App *app);
+    void renderMaterialUI(App *app);
+
     /**
      * @brief Fonction de rendu de l'interface graphique.
      * @param app Pointeur sur l'application
@@ -71,11 +74,14 @@ protected:
 
     int m_illumination_model = 0;
     int m_mat_preset = 0;
-    float m_shininess = 10.0f;
     float m_ambient_color[3] = { 0.1, 0.1, 0.1 };
     float m_diffuse_color[3] = { 0.3, 0.3, 0.3 };
     float m_specular_color[3] = { 0.5, 0.5, 0.5 };
     float m_emissive_color[3] = { 0, 0, 0 };
+    float m_shininess = 10.0f;
+    float m_percentSpecular = 0.5f;
+    float m_refractionChance = 0.5f;
+    float m_indexOfRefraction = 1.5f;
 
     // PBR properties
     int m_pbr_preset = 0;
@@ -87,6 +93,7 @@ protected:
     float m_kl = 0.09f;
     float m_kq = 0.03f;
     float m_p = 10.0f;
+    float m_intensity = 1.0f;
     float m_ambient_light_color[3] = { 0.1, 0.1, 0.1 };
     float m_light_color[3] = { 0.3, 0.3, 0.3 };
 

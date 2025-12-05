@@ -10,11 +10,15 @@ struct Material {
         const glm::vec3 &diffuseColor = { 1.0f, 1.0f, 1.0f },
         const glm::vec3 &specularColor = { 1.0f, 1.0f, 1.0f },
         const glm::vec3 &emissiveColor = { 0.0f, 0.0f, 0.0f },
-        float shininess = 5.0f) :
+        float shininess = 5.0f, float roughness = 0.5f,
+        float percentSpecular = 0.0f, float indexOfRefraction = 1.0f,
+        float refractionChance = 0.0f) :
         m_ambientColor(ambientColor),
         m_diffuseColor(diffuseColor), m_specularColor(specularColor),
-        m_emissiveColor(emissiveColor), m_shininess(shininess),
-        m_metallic(0.0f), m_roughness(0.5f), m_ao(1.0f), m_usePBR(false) {};
+        m_emissiveColor(emissiveColor), m_shininess(shininess), m_percentSpecular(percentSpecular),
+        m_roughness(roughness), m_indexOfRefraction(indexOfRefraction),
+        m_refractionChance(refractionChance),
+        m_metallic(0.0f), m_ao(1.0f), m_usePBR(false) {};
 
     // PBR constructor
     static Material createPBR(const glm::vec3 &albedo, float metallic,
@@ -38,11 +42,15 @@ struct Material {
     glm::vec3 m_diffuseColor;
     glm::vec3 m_specularColor;
     glm::vec3 m_emissiveColor;
-    float m_shininess;
+    float m_shininess = 5.0f;
 
-    // PBR properties
+    // Path Tracing
+    float m_percentSpecular = 0.0f;
+    float m_roughness = 0.5f;
+    float m_indexOfRefraction = 1.0f;
+    float m_refractionChance = 0.0f;
+
     float m_metallic;
-    float m_roughness;
     float m_ao;
     bool m_usePBR;
 

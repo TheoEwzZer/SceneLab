@@ -136,6 +136,7 @@ private:
     BoundingBoxDrawCallback m_bboxDrawCallback;
     bool m_lockCameraWindows = false;
     int m_lockedCameraId = -1;
+    glm::vec3 m_ambientLightColor;
 
     void renderCameraViews(const Camera &cam, CameraView &view);
     void renderDockableViews(CameraManager &cameraManager);
@@ -185,6 +186,12 @@ public:
     float getObjectIndexOfRefraction(int objectId) const override;
     void setObjectRefractionChance(int objectId, float chance) override;
     float getObjectRefractionChance(int objectId) const override;
+    void setObjectMaterial(int objectId, const Material &mat) override;
+
+    void setAmbientLight(const glm::vec3 &color) override {m_ambientLightColor = color;}
+    RenderableObject &getRenderable(int objectId) const override;
+
+    void setLightingModel(LightingModel model) override {(void) model; return; }
 
     // Camera Related
     void setViewMatrix(const glm::mat4 &view) override { m_viewMatrix = view; }
@@ -264,6 +271,8 @@ public:
     {
         return m_textureLibrary.getActiveCubemap();
     }
+
+    void refresh() {m_trianglesDirty = true;};
 
     const std::vector<int> &getCubemapHandles() const;
 };

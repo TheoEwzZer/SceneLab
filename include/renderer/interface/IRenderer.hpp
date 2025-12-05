@@ -1,5 +1,6 @@
 #pragma once
 
+#include "glm/fwd.hpp"
 #include <cstdlib>
 #include <functional>
 #include <glad/gl.h>
@@ -25,6 +26,8 @@ struct ImVec2;
 // Interface for renderers
 class IRenderer {
 public:
+enum LightingModel { LAMBERT = 0, PHONG = 1, BLINN_PHONG = 2, GOURAUD = 3, PBR = 4};
+
     virtual ~IRenderer() = default;
 
     IRenderer(const IRenderer &) = delete;
@@ -101,6 +104,10 @@ public:
         = 0;
     virtual void destroyCameraViews(int id) = 0;
     virtual void renderAllViews(CameraManager &cameraManager) = 0;
+    virtual void setLightingModel(LightingModel model) = 0;
+    virtual RenderableObject &getRenderable(int objectId) const = 0;
+    virtual void setAmbientLight(const glm::vec3 &color) = 0;
+    virtual void setObjectMaterial(int objectId, const Material &mat) = 0;
 
     using CameraOverlayCallback = std::function<void(int, const Camera &,
         ImVec2 imagePos, ImVec2 imageSize, bool isHovered)>;

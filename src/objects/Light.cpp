@@ -3,32 +3,36 @@
 //
 
 #include "../../include/objects/Light.hpp"
+#include "glm/ext/vector_float3.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include <sstream>
 #include <stdexcept>
+#include "GeometryGenerator.hpp"
 #include <string>
 
-Light::Light(const std::vector<Vertex> &vertices,
-    const std::vector<unsigned int> &indices, const glm::vec3 &color)
+Light::Light()
 {
-    init(vertices, indices);
-    m_color = color;
-    m_mat.m_diffuseColor = color;
+    init();
+    m_color = glm::vec3(1,1,1);
+    m_mat.m_diffuseColor = m_color;
+    m_mat.m_specularColor = glm::vec3(1.0f);
+    m_mat.m_percentSpecular = 0.0f;
+    m_mat.m_roughness = 1.0f;
+    m_mat.m_refractionChance = 0.0f;
+    m_mat.m_indexOfRefraction = 1.0f;
     updateEmissive();
 }
 
-Light::Light(const std::vector<Vertex> &vertices,
-    const std::vector<unsigned int> &indices, const int textureHandle)
+void Light::init()
 {
-    init(vertices, indices);
-    this->m_textureHandle = textureHandle;
-    updateEmissive();
-}
+    m_primitiveType = PrimitiveType::Sphere;
+    int sphereRadius = 1.0f;
 
-void Light::init(const std::vector<Vertex> &vertices,
-    const std::vector<unsigned int> &indices)
-{
+    m_gdata = GeometryGenerator::generateSphere(sphereRadius, 1, 1);
+    auto vertices = m_gdata.vertices;
+
+    glGenVertexArrays(1, &VAO);
     // Convert Vertex data to float array for path tracing
     m_vertices.reserve(vertices.size() * 14);
     for (const auto &v : vertices) {
@@ -47,58 +51,44 @@ void Light::init(const std::vector<Vertex> &vertices,
         m_vertices.push_back(v.bitangent.y);
         m_vertices.push_back(v.bitangent.z);
     }
-    m_indices = indices;
 
-    glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    useIndices = !indices.empty();
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex),
-        vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(float),
+        m_vertices.data(), GL_STATIC_DRAW);
 
-    if (useIndices) {
-        glGenBuffers(1, &EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-            indices.size() * sizeof(unsigned int), indices.data(),
-            GL_STATIC_DRAW);
-        indexCount = static_cast<unsigned int>(indices.size());
-        useIndices = true;
-    } else {
-        indexCount = static_cast<unsigned int>(vertices.size());
-    }
+    indexCount = static_cast<unsigned int>(m_vertices.size() / 8);
+    useIndices = false;
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-        (void *)offsetof(Vertex, position));
+    glVertexAttribPointer(
+        0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-        (void *)offsetof(Vertex, texCoord));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+        (void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-        (void *)offsetof(Vertex, normal));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+        (void *)(5 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-        (void *)offsetof(Vertex, tangent));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-        (void *)offsetof(Vertex, bitangent));
-    glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 
     isActive = true;
 }
 
-void Light::useShader(ShaderProgram &shader) const { (void)shader; }
+GData &Light::getGData()
+{
+    return m_gdata;
+}
+
+void Light::useShader(ShaderProgram &shader) const {
+    (void) shader;
+}
 
 void Light::updateEmissive()
 {
-    // For rasterization: use normalized color
-    m_mat.m_emissiveColor = m_color;
-    // For path tracing: use color * intensity
-    m_emissive = m_color * m_intensity;
+    m_mat.m_emissiveColor = m_color * m_intensity * 1500.0f;
 }
 
 void Light::setIntensity(float intensity)
@@ -107,33 +97,40 @@ void Light::setIntensity(float intensity)
     updateEmissive();
 }
 
-void Light::setDirectional(const glm::vec3 &color)
+void Light::setDirectional(const glm::vec3 &color, float intensity)
 {
     m_color = color;
     m_type = Directional;
+    m_intensity = intensity;
     updateEmissive();
 }
 
-void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq)
+void Light::setPoint(const glm::vec3 &color, float kc, float kl, float kq, float intensity)
 {
     m_color = color;
     m_kc = kc;
     m_kl = kl;
     m_kq = kq;
     m_type = Point;
+    m_intensity = intensity;
     updateEmissive();
 }
 
-void Light::setSpot(
-    const glm::vec3 &color, float ke, float kl, float kq, float p)
+void Light::setSpot(const glm::vec3 &color, float kc, float kl, float kq, float p, float intensity)
 {
     m_color = color;
-    m_kc = ke;
+    m_kc = kc;
     m_kl = kl;
     m_kq = kq;
     m_p = p;
     m_type = Spot;
+    m_intensity = intensity;
     updateEmissive();
+}
+
+Light::Type Light::getType() const
+{
+    return m_type;
 }
 
 std::string Light::getNameStr() const
@@ -168,22 +165,20 @@ void Light::setUniforms(
             uniformName
                 = "directionalLights[" + std::to_string(uniformID) + "].";
             lightingShader.setVec3(uniformName + "direction", dir);
-            lightingShader.setVec3(uniformName + "color", m_color);
+            lightingShader.setVec3(uniformName + "color", m_color * m_intensity);
             break;
         case Point:
-            uniformName = "pointLights[" + std::to_string(uniformID) + "].";
-            lightingShader.setVec3(
-                uniformName + "position", glm::vec3(modelMatrix[3]));
-            lightingShader.setVec3(uniformName + "color", m_color);
+            uniformName = "pointLights[" + std::to_string(uniformID) +  "].";
+            lightingShader.setVec3(uniformName + "position", glm::vec3(modelMatrix[3]));
+            lightingShader.setVec3(uniformName + "color", m_color * m_intensity);
             lightingShader.setFloat(uniformName + "ke", m_kc);
             lightingShader.setFloat(uniformName + "kl", m_kl);
             lightingShader.setFloat(uniformName + "kq", m_kq);
             break;
         case Spot:
-            uniformName = "spotLights[" + std::to_string(uniformID) + "].";
-            lightingShader.setVec3(
-                uniformName + "position", glm::vec3(modelMatrix[3]));
-            lightingShader.setVec3(uniformName + "color", m_color);
+            uniformName = "spotLights[" + std::to_string(uniformID) +  "].";
+            lightingShader.setVec3(uniformName + "position", glm::vec3(modelMatrix[3]));
+            lightingShader.setVec3(uniformName + "color", m_color * m_intensity);
             lightingShader.setVec3(uniformName + "direction", dir);
             lightingShader.setFloat(uniformName + "ke", m_kc);
             lightingShader.setFloat(uniformName + "kl", m_kl);
@@ -199,38 +194,18 @@ void Light::draw([[maybe_unused]] const ShaderProgram &vectorial,
     [[maybe_unused]] const ShaderProgram &pointLight,
     const ShaderProgram &lighting, const TextureLibrary &textures) const
 {
-    const TextureResource *texture
-        = textures.getTextureResource(m_textureHandle);
-
+    (void) textures;
     lighting.use();
     lighting.setMat4("model", modelMatrix);
-    const bool useTexture = this->m_useTexture && texture
-        && texture->target == TextureTarget::Texture2D;
-    lighting.setBool("useTexture", useTexture);
-
+    lighting.setBool("useTexture", false);
     m_mat.setShaderUniforms(lighting);
 
     lighting.setInt("filterMode", static_cast<int>(filterMode));
-    glm::vec2 texelSize = useTexture
-        ? glm::vec2(1.0f / static_cast<float>(texture->size.x),
-            1.0f / static_cast<float>(texture->size.y))
-        : glm::vec2(0.0f);
+    glm::vec2 texelSize = glm::vec2(0.0f);
     lighting.setVec2("texelSize", texelSize);
 
-    if (texture) {
-        if (texture->target == TextureTarget::Texture2D) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture->id);
-        }
-    } else {
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindVertexArray(VAO);
-    if (!useIndices) {
-        glDrawArrays(GL_TRIANGLES, 0, indexCount);
-    } else {
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-    }
+    glDrawArrays(GL_TRIANGLES, 0, indexCount);
     glBindVertexArray(0);
 }
