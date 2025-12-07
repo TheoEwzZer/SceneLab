@@ -46,6 +46,9 @@ struct SpotLight {
 uniform sampler2D ourTexture;
 uniform bool useTexture;
 
+uniform bool useNormalMap;
+uniform sampler2D normalMap;
+
 uniform PBRMaterial material;
 uniform vec3 viewPosition;
 uniform vec3 ambientLightColor;
@@ -175,9 +178,30 @@ vec3 applyToneMapping(vec3 color)
     return mapped;
 }
 
+vec3 getNormalFromMap()
+{
+    if (!useNormalMap) {
+        return normalize(Normal);
+    }
+
+    vec3 tangentNormal = texture(normalMap, TexCoord).xyz * 2.0 - 1.0;
+    vec3 FragPos = WorldPos.xyz;
+    vec3 Q1 = dFdx(FragPos);
+    vec3 Q2 = dFdy(FragPos);
+    vec2 st1 = dFdx(TexCoord);
+    vec2 st2 = dFdy(TexCoord);
+
+    vec3 N = normalize(Normal);
+    vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+    vec3 B = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
+
 void main()
 {
-    vec3 N = normalize(Normal);
+    vec3 N = getNormalFromMap();
     vec3 V = normalize(viewPosition - WorldPos);
 
     // Get albedo from texture or material

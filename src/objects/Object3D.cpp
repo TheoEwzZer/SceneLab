@@ -87,7 +87,7 @@ void Object3D::draw([[maybe_unused]] const ShaderProgram &vectorial,
     const ShaderProgram &lighting, const TextureLibrary &textures) const
 {
     const TextureResource *texture
-        = textures.getTextureResource(m_textureHandle);
+         = textures.getTextureResource(m_textureHandle);
 
     const NormalMapResource *normalMap
         = textures.getNormalMapResource(m_normalMapHandler);

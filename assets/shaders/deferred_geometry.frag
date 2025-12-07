@@ -17,7 +17,7 @@ uniform float ao;
 // Texture flags and samplers
 uniform bool hasAlbedoMap;
 uniform sampler2D albedoMap;
-uniform bool hasNormalMap;
+uniform bool useNormalMap;
 uniform sampler2D normalMap;
 uniform bool hasMetallicMap;
 uniform sampler2D metallicMap;
@@ -26,7 +26,7 @@ uniform sampler2D roughnessMap;
 
 vec3 getNormalFromMap()
 {
-    if (!hasNormalMap) {
+    if (!useNormalMap) {
         return normalize(Normal);
     }
 

@@ -73,11 +73,17 @@ void AnalyticalPlane::draw([[maybe_unused]] const ShaderProgram &vectorial,
     const TextureResource *texture
         = textures.getTextureResource(m_textureHandle);
 
+    const NormalMapResource *normalMap
+        = textures.getNormalMapResource(m_normalMapHandler);
+
     lighting.use();
     lighting.setMat4("model", modelMatrix);
     const bool useTexture = this->m_useTexture && texture
         && texture->target == TextureTarget::Texture2D;
     lighting.setBool("useTexture", useTexture);
+
+    const bool useNormalMap = this->m_useNormalMap && normalMap;
+    lighting.setBool("useNormalMap", useNormalMap);
 
     m_mat.setShaderUniforms(lighting);
 
@@ -93,6 +99,13 @@ void AnalyticalPlane::draw([[maybe_unused]] const ShaderProgram &vectorial,
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture->id);
         }
+    } else {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    glActiveTexture(GL_TEXTURE1);
+    if (normalMap) {
+        glBindTexture(GL_TEXTURE_2D, normalMap->id);
     } else {
         glBindTexture(GL_TEXTURE_2D, 0);
     }

@@ -59,6 +59,7 @@ RasterizationRenderer::RasterizationRenderer(Window &window) :
         shader.use();
         shader.setVec3("ambientLightColor", m_ambientLightColor);
         shader.setInt("ourTexture", 0);
+        shader.setInt("normalMap", 1);
         shader.setInt("filterMode", 0);
         shader.setVec2("texelSize", glm::vec2(1.0f));
         shader.setInt("toneMappingMode", static_cast<int>(m_toneMappingMode));
