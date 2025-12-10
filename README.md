@@ -2,6 +2,7 @@
 
 **A feature-rich 3D/2D scene editor with real-time path tracing**
 
+![Build](https://github.com/TheoEwzZer/SceneLab/actions/workflows/docker-build.yml/badge.svg)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
 ![OpenGL](https://img.shields.io/badge/OpenGL-3.3%2B-green.svg)
 ![CMake](https://img.shields.io/badge/CMake-3.16%2B-red.svg)
@@ -122,6 +123,36 @@ cmake --build .
 
 > **Note for Windows:** This project uses MinGW-w64. Install via [MSYS2](https://www.msys2.org/) or Chocolatey: `choco install mingw`
 
+### Docker (Linux build)
+
+Build and run using Docker:
+
+```bash
+docker build -t scenelab .
+docker run --rm scenelab ./scenelab_tests
+```
+
+Or use docker-compose:
+
+```bash
+docker-compose build
+```
+
+### Running Tests
+
+Unit tests use [GoogleTest](https://github.com/google/googletest) and are built with the `-DBUILD_TESTS=ON` flag:
+
+```bash
+mkdir build && cd build
+cmake -DBUILD_TESTS=ON ..
+cmake --build .
+./scenelab_tests
+```
+
+### Pre-built Binaries
+
+Linux binaries are automatically built and published to [GitHub Releases](https://github.com/TheoEwzZer/SceneLab/releases) on every push to `main`.
+
 ---
 
 ## Project Structure
@@ -161,6 +192,7 @@ All dependencies are included as Git submodules in `external/`:
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | 3D transform gizmos |
 | [ImGuiFileDialog](https://github.com/aiekick/ImGuiFileDialog) | File browser dialog |
 | [stb_image](https://github.com/nothings/stb) | Image loading |
+| [GoogleTest](https://github.com/google/googletest) | Unit testing framework (fetched via CMake) |
 
 ---
 
