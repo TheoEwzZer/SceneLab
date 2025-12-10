@@ -1,0 +1,121 @@
+name: Build & Test (Linux)
+
+on:
+  push:
+    branches:
+      - main
+      - "release-*"
+    paths:
+      - "src/**"
+      - "include/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - "Dockerfile"
+      - ".github/workflows/docker-build.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "include/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - "Dockerfile"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: scenelab:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run unit tests
+        run: |
+          docker run --rm scenelab:test ./scenelab_tests --gtest_color=yes --gtest_output=xml:/app/test-results.xml
+
+      - name: Run tests with detailed output
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          docker run --rm scenelab:test ./scenelab_tests --gtest_color=no 2>&1 | tee test-output.txt
+
+          if grep -q "PASSED" test-output.txt; then
+            echo "✅ **All tests passed!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Some tests failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Extract binaries
+        run: |
+          mkdir -p dist
+          docker create --name extract scenelab:test
+          docker cp extract:/app/scenelab ./dist/scenelab-linux
+          docker cp extract:/app/scenelab_tests ./dist/scenelab_tests-linux
+          docker rm extract
+          chmod +x ./dist/*
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v5
+        with:
+          name: scenelab-linux-binaries
+          path: |
+            dist/scenelab-linux
+            dist/scenelab_tests-linux
+          retention-days: 7
+
+      - name: Generate release tag
+        id: tag
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          echo "release_tag=build-${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "release_name=Build ${TIMESTAMP} (${SHORT_SHA})" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: ${{ steps.tag.outputs.release_name }}
+          body: |
+            🤖 Automated build from commit ${{ github.sha }}
+
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            **Branch:** `main`
+            **Workflow:** [Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ### Downloads
+            - `scenelab-linux` - Main application binary
+            - `scenelab_tests-linux` - Test suite binary
+          files: |
+            dist/scenelab-linux
+            dist/scenelab_tests-linux
+          prerelease: true
+          generate_release_notes: false

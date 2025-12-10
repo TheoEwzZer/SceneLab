@@ -80,3 +80,44 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 else()
     target_link_libraries(scenelab glfw glad glm)
 endif()
+
+# =============================================================================
+# Unit tests (optional, activated with -DBUILD_TESTS=ON)
+# =============================================================================
+option(BUILD_TESTS "Build unit tests" OFF)
+
+if(BUILD_TESTS)
+    message(STATUS "Building unit tests...")
+
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    add_subdirectory(external/googletest)
+
+    enable_testing()
+
+    set(TESTABLE_SOURCES
+        src/GameObject.cpp
+    )
+
+    add_library(scenelab_testable STATIC ${TESTABLE_SOURCES})
+    target_include_directories(scenelab_testable PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(scenelab_testable PUBLIC glm)
+
+    set(TEST_SOURCES
+        tests/test_gameobject.cpp
+        tests/test_aabb.cpp
+    )
+    add_executable(scenelab_tests ${TEST_SOURCES})
+    target_include_directories(scenelab_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(scenelab_tests PRIVATE
+        scenelab_testable
+        GTest::gtest_main
+        GTest::gmock
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(scenelab_tests)
+endif()
